@@ -3,8 +3,10 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::auth::{ConnectError, ConnectResponse};
-use crate::constants::{UBI_APP_ID, UBI_USER_AGENT};
-use crate::models::{FullProfile, PlatformFamily, PlayType, PlaytimeProfile, PlaytimeResponse};
+use crate::constants::{UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
+use crate::models::{
+    FullProfile, PlatformFamily, PlatformType, PlayType, PlaytimeProfile, PlaytimeResponse,
+};
 
 #[derive(Debug)]
 pub struct Client {
@@ -114,6 +116,61 @@ impl Client {
             .map(|x| x.full_profiles[0])
             .collect::<Vec<_>>())
     }
+
+    pub async fn get_operators(&self, player_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
+        let url = format!("https://prod.datadev.ubisoft.com/v1/profiles/{player_id}/playerstats");
+        let url = Url::parse_with_params(
+            url.as_str(),
+            &[
+                ("spaceId", ""),
+                ("view", "current"),
+                ("aggregation", "maps"), // TODO: Could be an argument
+                (
+                    "gameMode",
+                    vec!["all", "ranked", "cansal", "unranked"]
+                        .join(",")
+                        .as_str(),
+                ),
+                ("platformGroup", "pc"),
+                (
+                    "teamRole",
+                    vec!["all", "Attacker", "Defender"].join(",").as_str(),
+                ),
+            ],
+        )
+        .expect("is a valid url");
+
+        let response = self.client.get(url).set_headers(&self.auth).send().await?;
+        println!("{}", response.text().await?);
+
+        todo!()
+    }
+
+    pub async fn get_statistics(&self, player_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
+        let platform = PlatformType::Uplay;
+        let statistics = vec!["operatorpvp_kills"];
+
+        let url = format!(
+            "{}/v1/spaces/{space}/sandboxes/{sandbox}/",
+            UBI_SERVICES_URL,
+            space = platform.get_space().to_string(),
+            sandbox = platform.get_sandbox(),
+        );
+        let url = format!("{url}/playerstats2/statistics");
+        let url = Url::parse_with_params(
+            url.as_str(),
+            &[
+                ("populations", player_id.to_string()),
+                ("statistics", statistics.join(",")),
+            ],
+        )
+        .expect("is a valid url");
+
+        let response = self.client.get(url).set_headers(&self.auth).send().await?;
+
+        println!("{}", response.text().await?);
+        todo!()
+    }
 }
 
 trait SetHeaders {
@@ -140,11 +197,25 @@ mod test {
     use super::*;
 
     fn mock_player_id() -> Uuid {
-        Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
+        // Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
+        Uuid::parse_str("83d1d65d-d568-4b38-a162-56c616ab4140").unwrap()
     }
 
     async fn create_client_from_environment() -> Client {
-        Into::<Client>::into(Auth::from_environment().connect().await.unwrap())
+        // let auth = Auth::new(
+        //     "jomahebam.redafapap@rungel.net".to_string(),
+        //     "4pVo9!9^D8BU4zet".to_string(),
+        // );
+        let auth = Auth::from_environment();
+
+        Into::<Client>::into(auth.connect().await.unwrap())
+    }
+
+    #[tokio::test]
+    async fn operators_statistics() {
+        let client = create_client_from_environment().await;
+
+        client.get_operators(mock_player_id()).await.unwrap();
     }
 
     #[tokio::test]

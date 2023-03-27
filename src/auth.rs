@@ -6,7 +6,7 @@ use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::constants::UBI_APP_ID;
+use crate::{constants::UBI_APP_ID, models::PlatformType};
 
 #[derive(Debug)]
 pub struct Auth {
@@ -53,6 +53,13 @@ impl Auth {
         }
     }
 
+    /// Create a new Auth context with a username and password.
+    pub fn new(username: String, password: String) -> Self {
+        Self { username, password }
+    }
+
+    /// Load Auth from the environment. This expects the `UBISOFT_EMAIL` and
+    /// `UBISOFT_PASSWORD` variables to be set. Otherwise this will panic.
     pub fn from_environment() -> Self {
         Self {
             username: std::env::var("UBISOFT_EMAIL")
@@ -86,21 +93,6 @@ pub struct ConnectResponse {
     server_time: DateTime<Utc>,
     session_id: Uuid,
     session_key: String, // Base64 encoded
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PlatformType {
-    Uplay,
-    // These have not been verified
-    Xbox,
-    Playstation,
-}
-
-impl Display for PlatformType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
 
 #[cfg(test)]

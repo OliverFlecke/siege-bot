@@ -1,7 +1,63 @@
+use lazy_static::lazy_static;
+use std::fmt::Display;
+
 use chrono::{DateTime, Duration, Utc};
 use derive_getters::Getters;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+/// Represents the different platforms that it is possible to play Siege on.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PlatformType {
+    Uplay,
+    // These have not been verified
+    #[serde(rename = "xbl")]
+    Xbox,
+    #[serde(rename = "psn")]
+    Playstation,
+}
+
+impl Display for PlatformType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl PlatformType {
+    /// Get the space this platform is using when quering Ubisoft's API.
+    pub fn get_space(&self) -> &Uuid {
+        lazy_static! {
+            static ref UPLAY_SPACE: Uuid =
+                Uuid::parse_str("5172a557-50b5-4665-b7db-e3f2e8c5041d").expect("is valid uuid");
+            static ref PLAYSTATION_SPACE: Uuid =
+                Uuid::parse_str("05bfb3f7-6c21-4c42-be1f-97a33fb5cf66").expect("is valid uuid");
+            static ref XBOX_SPACE: Uuid =
+                Uuid::parse_str("98a601e5-ca91-4440-b1c5-753f601a2c90").expect("is valid uuid");
+        }
+
+        match self {
+            PlatformType::Uplay => &UPLAY_SPACE,
+            PlatformType::Xbox => &XBOX_SPACE,
+            PlatformType::Playstation => &PLAYSTATION_SPACE,
+        }
+    }
+
+    /// Get the sandbox associated with the given platform.
+    pub fn get_sandbox(&self) -> &str {
+        lazy_static! {
+            static ref UPLAY: &'static str = "OSBOR_PC_LNCH_A";
+            static ref PLAYSTATION: &'static str = "OSBOR_PS4_LNCH_A";
+            static ref XBOX: &'static str = "OSBOR_XBOXONE_LNCH_A";
+        }
+
+        match self {
+            PlatformType::Uplay => &UPLAY,
+            PlatformType::Xbox => &XBOX,
+            PlatformType::Playstation => &PLAYSTATION,
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Getters)]
 pub struct PlaytimeResponse {
