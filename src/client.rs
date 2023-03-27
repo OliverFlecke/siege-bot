@@ -126,7 +126,7 @@ impl Client {
         let url = format!(
             "{}/v1/spaces/{space}/sandboxes/{sandbox}/",
             UBI_SERVICES_URL,
-            space = platform.get_space().to_string(),
+            space = platform.get_space(),
             sandbox = platform.get_sandbox(),
         );
         let url = format!("{url}/playerstats2/statistics");
