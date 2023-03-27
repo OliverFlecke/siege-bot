@@ -1,41 +1,55 @@
-use reqwest::Url;
+use reqwest::{RequestBuilder, Url};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::auth::{Auth, ConnectError};
+use crate::auth::{ConnectError, ConnectResponse};
 use crate::constants::{UBI_APP_ID, UBI_USER_AGENT};
 use crate::models::{FullProfile, PlatformFamily, PlayType, PlaytimeProfile, PlaytimeResponse};
 
-pub struct Client;
+#[derive(Debug)]
+pub struct Client {
+    auth: ConnectResponse,
+    client: reqwest::Client,
+}
+
+impl From<ConnectResponse> for Client {
+    fn from(auth: ConnectResponse) -> Self {
+        Self {
+            auth,
+            client: reqwest::Client::new(),
+        }
+    }
+}
 
 impl Client {
+    /// Get the playtime for the given player.
+    /// See the `PlaytimeProfile` structs for the fields it contains.
     pub async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile, ConnectError> {
-        // TODO: Can this be made more readable?
         // TODO: Should `spaceId` be a parameter?
-        let url = format!("https://public-ubiservices.ubi.com/v1/profiles/stats?profileIds={player_id}&spaceId=0d2ae42d-4c27-4cb7-af6c-2099062302bb&statNames=PPvPTimePlayed,PPvETimePlayed,PTotalTimePlayed,PClearanceLevel");
+        let url = "https://public-ubiservices.ubi.com/v1/profiles/stats";
+        let url = Url::parse_with_params(
+            url,
+            &[
+                ("profileIds", player_id.to_string()),
+                (
+                    "spaceId",
+                    "0d2ae42d-4c27-4cb7-af6c-2099062302bb".to_string(),
+                ),
+                (
+                    "statsName",
+                    "PPvPTimePlayed,PPvETimePlayed,PTotalTimePlayed,PClearanceLevel".to_string(),
+                ),
+            ],
+        )
+        .expect("url is valid");
 
-        let connected = Auth::from_environment().connect().await?;
-
-        let client = reqwest::Client::new();
-        let response = client
+        let response = self
+            .client
             .get(url)
-            .header("Authorization", format!("Ubi_v1 t={}", connected.ticket()))
-            .header("User-Agent", UBI_USER_AGENT)
-            .header("Ubi-AppId", UBI_APP_ID)
-            .header("Ubi-LocalCode", "en-US")
-            .header("Ubi-SessionId", connected.session_id().to_string())
-            .header("expiration", connected.expiration().to_string())
+            .set_headers(&self.auth)
             .send()
             .await
             .map_err(|_| ConnectError::ConnectionError)?;
-
-        // println!(
-        //     "{}",
-        //     response
-        //         .text()
-        //         .await
-        //         .map_err(|_| ConnectError::UnexpectedResponse)?
-        // );
 
         let parsed = response
             .json::<PlaytimeResponse>()
@@ -45,6 +59,9 @@ impl Client {
         Ok(parsed.profiles()[0])
     }
 
+    /// Get full Siege profiles from the API. This will only contain the latest
+    /// statistics from the current season. It does *not* look like it is possible
+    /// to query earlier seasons at the moment.
     pub async fn get_full_profiles(
         &self,
         player_id: Uuid,
@@ -60,20 +77,15 @@ impl Client {
         )
         .expect("url is valid");
 
-        let connected = Auth::from_environment().connect().await?;
-        let client = reqwest::Client::new();
-        let response = client
+        let response = self
+            .client
             .get(url)
-            .header("Authorization", format!("Ubi_v1 t={}", connected.ticket()))
-            .header("User-Agent", UBI_USER_AGENT)
-            .header("Ubi-AppId", UBI_APP_ID)
-            .header("Ubi-LocalCode", "en-US")
-            .header("Ubi-SessionId", connected.session_id().to_string())
-            .header("expiration", connected.expiration().to_string())
+            .set_headers(&self.auth)
             .send()
             .await
             .map_err(|_| ConnectError::ConnectionError)?;
 
+        // Helper structs to extract the unnecssary nesting from the API.
         #[derive(Deserialize)]
         struct Response {
             platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
@@ -104,9 +116,26 @@ impl Client {
     }
 }
 
+trait SetHeaders {
+    fn set_headers(self, auth: &ConnectResponse) -> Self;
+}
+
+impl SetHeaders for RequestBuilder {
+    fn set_headers(self, auth: &ConnectResponse) -> Self {
+        self.header("User-Agent", UBI_USER_AGENT)
+            .header("Ubi-AppId", UBI_APP_ID)
+            .header("Ubi-LocalCode", "en-US")
+            .header("Authorization", format!("Ubi_v1 t={}", auth.ticket()))
+            .header("Ubi-SessionId", auth.session_id().to_string())
+            .header("expiration", auth.expiration().to_string())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use chrono::{DateTime, Duration};
+
+    use crate::auth::Auth;
 
     use super::*;
 
@@ -114,18 +143,21 @@ mod test {
         Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
     }
 
+    async fn create_client_from_environment() -> Client {
+        Into::<Client>::into(Auth::from_environment().connect().await.unwrap())
+    }
+
     #[tokio::test]
     async fn full_player_profiles() {
-        let client = Client {};
+        let client = create_client_from_environment().await;
 
-        let profile = client.get_full_profiles(mock_player_id()).await.unwrap();
+        _ = client.get_full_profiles(mock_player_id()).await.unwrap();
     }
 
     #[tokio::test]
     async fn playtime() {
         let player_id = mock_player_id();
-        let client = Client {};
-
+        let client = create_client_from_environment().await;
         let playtime = client.get_playtime(player_id).await.unwrap();
 
         // Assert PvP
