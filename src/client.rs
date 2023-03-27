@@ -1,3 +1,4 @@
+use chrono::{Months, NaiveDate, Utc};
 use reqwest::{RequestBuilder, Url};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -5,7 +6,8 @@ use uuid::Uuid;
 use crate::auth::{ConnectError, ConnectResponse};
 use crate::constants::{UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
 use crate::models::{
-    FullProfile, PlatformFamily, PlatformType, PlayType, PlaytimeProfile, PlaytimeResponse,
+    FullProfile, OperatorStatisticResponse, PlatformFamily, PlatformType, PlayType,
+    PlaytimeProfile, PlaytimeResponse,
 };
 
 #[derive(Debug)]
@@ -117,35 +119,6 @@ impl Client {
             .collect::<Vec<_>>())
     }
 
-    pub async fn get_operators(&self, player_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
-        let url = format!("https://prod.datadev.ubisoft.com/v1/profiles/{player_id}/playerstats");
-        let url = Url::parse_with_params(
-            url.as_str(),
-            &[
-                ("spaceId", ""),
-                ("view", "current"),
-                ("aggregation", "maps"), // TODO: Could be an argument
-                (
-                    "gameMode",
-                    vec!["all", "ranked", "cansal", "unranked"]
-                        .join(",")
-                        .as_str(),
-                ),
-                ("platformGroup", "pc"),
-                (
-                    "teamRole",
-                    vec!["all", "Attacker", "Defender"].join(",").as_str(),
-                ),
-            ],
-        )
-        .expect("is a valid url");
-
-        let response = self.client.get(url).set_headers(&self.auth).send().await?;
-        println!("{}", response.text().await?);
-
-        todo!()
-    }
-
     pub async fn get_statistics(&self, player_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
         let platform = PlatformType::Uplay;
         let statistics = vec!["operatorpvp_kills"];
@@ -171,6 +144,21 @@ impl Client {
         println!("{}", response.text().await?);
         todo!()
     }
+
+    pub async fn get_operators(
+        &self,
+        player_id: Uuid,
+    ) -> Result<OperatorStatisticResponse, Box<dyn std::error::Error>> {
+        let url = create_operators_url(player_id);
+        println!("URL: {url}");
+
+        let response = self.client.get(url).set_headers(&self.auth).send().await?;
+
+        println!("Status: {}", response.status());
+        // println!("Body: {}", response.text().await?);
+
+        Ok(response.json::<OperatorStatisticResponse>().await?)
+    }
 }
 
 trait SetHeaders {
@@ -182,10 +170,58 @@ impl SetHeaders for RequestBuilder {
         self.header("User-Agent", UBI_USER_AGENT)
             .header("Ubi-AppId", UBI_APP_ID)
             .header("Ubi-LocalCode", "en-US")
-            .header("Authorization", format!("Ubi_v1 t={}", auth.ticket()))
             .header("Ubi-SessionId", auth.session_id().to_string())
-            .header("expiration", auth.expiration().to_string())
+            .header("Authorization", format!("Ubi_v1 t={}", auth.ticket()))
+            .header("Connection", "keep-alive")
+            .header(
+                "expiration",
+                auth.expiration()
+                    .to_rfc3339_opts(chrono::SecondsFormat::Micros, true),
+            )
     }
+}
+
+fn create_operators_url(player_id: Uuid) -> Url {
+    // Url::parse("https://prod.datadev.ubisoft.com/v1/profiles/e7679633-31ff-4f44-8cfd-d0ff81e2c10a/playerstats?spaceId=5172a557-50b5-4665-b7db-e3f2e8c5041d&view=current&aggregation=operators&gameMode=all,ranked,casual,unranked&platformGroup=PC&teamRole=all,Attacker,Defender").unwrap()
+
+    fn format_date(date: NaiveDate) -> String {
+        date.format("%Y%m%d").to_string()
+    }
+
+    // NOTE: seems like these cannot be more than three (somthing is off with my math) months apart.
+    // Or maybe it just cannot go earlier than 2022-11-25. Not sure what is special about that date.
+    // let start_date = NaiveDate::from_ymd_opt(2022, 11, 25).expect("is a valid date"); // TODO: Find a proper default
+    let end_date = Utc::now().date_naive();
+    let start_date = end_date
+        .checked_sub_months(Months::new(3))
+        .expect("should be valid");
+
+    let url = format!("https://prod.datadev.ubisoft.com/v1/profiles/{player_id}/playerstats");
+    Url::parse_with_params(
+        url.as_str(),
+        &[
+            ("view", "current"),
+            ("platformGroup", "PC"),
+            ("aggregation", "operators"), // TODO: Could be an argument
+            (
+                "spaceId",
+                PlatformType::Uplay.get_space().to_string().as_str(),
+            ),
+            (
+                "gameMode",
+                vec!["all", "ranked", "cansal", "unranked"]
+                    .join(",")
+                    .as_str(),
+            ),
+            (
+                "teamRole",
+                vec!["all", "Attacker", "Defender"].join(",").as_str(),
+            ),
+            ("startDate", format_date(start_date).as_str()),
+            ("endDate", format_date(end_date).as_str()),
+        ],
+    )
+    .expect("is a valid url")
 }
 
 #[cfg(test)]
@@ -197,25 +233,29 @@ mod test {
     use super::*;
 
     fn mock_player_id() -> Uuid {
-        // Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
-        Uuid::parse_str("83d1d65d-d568-4b38-a162-56c616ab4140").unwrap()
+        Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
     }
 
     async fn create_client_from_environment() -> Client {
-        // let auth = Auth::new(
-        //     "jomahebam.redafapap@rungel.net".to_string(),
-        //     "4pVo9!9^D8BU4zet".to_string(),
-        // );
         let auth = Auth::from_environment();
 
         Into::<Client>::into(auth.connect().await.unwrap())
+    }
+
+    #[test]
+    fn operators_url() {
+        let expected = "https://prod.datadev.ubisoft.com/v1/profiles/e7679633-31ff-4f44-8cfd-d0ff81e2c10a/playerstats?spaceId=5172a557-50b5-4665-b7db-e3f2e8c5041d&view=current&aggregation=operators&gameMode=all,ranked,casual,unranked&platformGroup=PC&teamRole=all,Attacker,Defender";
+
+        let actual = create_operators_url(mock_player_id());
+        assert_eq!(actual.as_str(), expected);
     }
 
     #[tokio::test]
     async fn operators_statistics() {
         let client = create_client_from_environment().await;
 
-        client.get_operators(mock_player_id()).await.unwrap();
+        let stats = client.get_operators(mock_player_id()).await.unwrap();
+        println!("{:?}", stats);
     }
 
     #[tokio::test]

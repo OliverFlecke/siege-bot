@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use std::fmt::Display;
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -174,6 +174,18 @@ pub enum PlayType {
     Warmup,
 }
 
+#[derive(Debug, Deserialize, Getters)]
+#[serde(rename_all = "camelCase")]
+pub struct OperatorStatisticResponse {
+    profile_id: Uuid,
+    #[serde(deserialize_with = "mappers::int_to_naive_date")]
+    start_date: NaiveDate,
+    #[serde(deserialize_with = "mappers::int_to_naive_date")]
+    end_date: NaiveDate,
+    region: String,
+    stat_type: String,
+}
+
 mod mappers {
     use serde::Deserializer;
 
@@ -191,5 +203,14 @@ mod mappers {
         })?;
 
         Ok(Duration::seconds(n))
+    }
+
+    pub fn int_to_naive_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: usize = Deserialize::deserialize(deserializer)?;
+
+        Ok(NaiveDate::parse_from_str(s.to_string().as_str(), "%Y%m%d").unwrap())
     }
 }
