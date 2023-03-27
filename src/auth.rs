@@ -1,7 +1,9 @@
 use chrono::prelude::*;
+use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use uuid::Uuid;
+
+use crate::constants::UBI_APP_ID;
 
 #[derive(Debug)]
 pub struct Auth {
@@ -20,19 +22,32 @@ impl Auth {
         ))
     }
 
-    pub async fn connect(&self) -> Result<ConnectResponse, Box<dyn Error>> {
+    pub async fn connect(&self) -> Result<ConnectResponse, ConnectError> {
         let client = reqwest::Client::new();
         let response = client
             .post("https://public-ubiservices.ubi.com/v3/profiles/sessions")
             .header("Content-Type", "application/json; charset-UTF-8")
-            .header("Ubi-AppId", "39baebad-39e5-4552-8c25-2c9b919064e2")
+            .header("Ubi-AppId", UBI_APP_ID)
             .header("Authorization", format!("Basic {}", self.get_token()))
             .send()
-            .await?;
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
 
-        // println!("{}", response.text().await?);
-        // todo!()
-        Ok(response.json::<ConnectResponse>().await?)
+        if response.status().is_success() {
+            Ok(response
+                .json::<ConnectResponse>()
+                .await
+                .map_err(|_| ConnectError::UnexpectedResponse)?)
+        } else {
+            println!(
+                "{}",
+                response
+                    .text()
+                    .await
+                    .map_err(|_| ConnectError::UnexpectedResponse)?
+            );
+            Err(ConnectError::InvalidPassword)
+        }
     }
 
     pub fn from_environment() -> Self {
@@ -45,7 +60,14 @@ impl Auth {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq)]
+pub enum ConnectError {
+    InvalidPassword,
+    UnexpectedResponse,
+    ConnectionError,
+}
+
+#[derive(Debug, Deserialize, Serialize, Getters)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectResponse {
     platform_type: PlatformType,
@@ -98,5 +120,18 @@ mod test {
 
         let response = auth.connect().await;
         println!("{:?}", response.unwrap());
+    }
+
+    #[tokio::test]
+    async fn connect_with_incorrect_credentials() {
+        let auth = Auth {
+            username: "abc".to_string(),
+            password: "123".to_string(),
+        };
+
+        assert_eq!(
+            auth.connect().await.unwrap_err(),
+            ConnectError::InvalidPassword
+        );
     }
 }
