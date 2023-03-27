@@ -1,10 +1,12 @@
+use reqwest::Url;
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::auth::{Auth, ConnectError};
 use crate::constants::{UBI_APP_ID, UBI_USER_AGENT};
-use crate::models::{PlaytimeProfile, PlaytimeResponse};
+use crate::models::{FullProfile, PlatformFamily, PlayType, PlaytimeProfile, PlaytimeResponse};
 
-struct Client;
+pub struct Client;
 
 impl Client {
     pub async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile, ConnectError> {
@@ -42,6 +44,64 @@ impl Client {
 
         Ok(parsed.profiles()[0])
     }
+
+    pub async fn get_full_profiles(
+        &self,
+        player_id: Uuid,
+    ) -> Result<Vec<FullProfile>, ConnectError> {
+        let url = "https://public-ubiservices.ubi.com/v2/spaces/0d2ae42d-4c27-4cb7-af6c-2099062302bb/title/r6s/skill/full_profiles";
+        let url = Url::parse_with_params(
+            url,
+            &[
+                ("profile_ids", player_id.to_string()),
+                // TODO: This mapping should happen from `PlatformType`
+                ("platform_families", "pc".to_string()), // platform.to_string().to_lowercase()),
+            ],
+        )
+        .expect("url is valid");
+
+        let connected = Auth::from_environment().connect().await?;
+        let client = reqwest::Client::new();
+        let response = client
+            .get(url)
+            .header("Authorization", format!("Ubi_v1 t={}", connected.ticket()))
+            .header("User-Agent", UBI_USER_AGENT)
+            .header("Ubi-AppId", UBI_APP_ID)
+            .header("Ubi-LocalCode", "en-US")
+            .header("Ubi-SessionId", connected.session_id().to_string())
+            .header("expiration", connected.expiration().to_string())
+            .send()
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
+
+        #[derive(Deserialize)]
+        struct Response {
+            platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
+        }
+        #[derive(Deserialize)]
+        struct PlatformFamiliesFullProfile {
+            #[allow(dead_code)]
+            platform_family: PlatformFamily,
+            board_ids_full_profiles: Vec<Board>,
+        }
+        #[derive(Deserialize)]
+        struct Board {
+            #[allow(dead_code)]
+            board_id: PlayType,
+            full_profiles: Vec<FullProfile>,
+        }
+
+        let profile = response.json::<Response>().await.map_err(|err| {
+            println!("Err: {err:?}");
+            ConnectError::UnexpectedResponse
+        })?;
+
+        Ok(profile.platform_families_full_profiles[0]
+            .board_ids_full_profiles
+            .iter()
+            .map(|x| x.full_profiles[0])
+            .collect::<Vec<_>>())
+    }
 }
 
 #[cfg(test)]
@@ -52,6 +112,13 @@ mod test {
 
     fn mock_player_id() -> Uuid {
         Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
+    }
+
+    #[tokio::test]
+    async fn full_player_profiles() {
+        let client = Client {};
+
+        let profile = client.get_full_profiles(mock_player_id()).await.unwrap();
     }
 
     #[tokio::test]
