@@ -20,10 +20,38 @@ use crate::commands::{
 
 struct Handler;
 
+async fn sync_commands(guild_id: GuildId, ctx: &Context) {
+    let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+        commands
+            .create_application_command(|command| PingCommand::register(command))
+            .create_application_command(|command| IdCommand::register(command))
+            .create_application_command(|command| StatisticsCommand::register(command))
+    })
+    .await;
+
+    tracing::trace!("Created guild slash commands: {commands:#?}");
+
+    let guild_command = Command::create_global_application_command(&ctx.http, |command| {
+        PingCommand::register(command);
+        IdCommand::register(command);
+        StatisticsCommand::register(command);
+
+        command
+    })
+    .await;
+
+    tracing::trace!("Created global slash commands: {guild_command:#?}");
+}
+
 #[async_trait]
 impl EventHandler for Handler {
-    async fn ready(&self, _ctx: Context, _ready: Ready) {
+    async fn ready(&self, _ctx: Context, ready: Ready) {
         tracing::info!("Client is ready");
+        tracing::trace!("{ready:?}");
+
+        for guild in ready.guilds {
+            sync_commands(guild.id, &_ctx).await;
+        }
     }
 
     async fn guild_create(&self, ctx: Context, guild: Guild) {
@@ -35,28 +63,6 @@ impl EventHandler for Handler {
             .await
             .iter()
             .for_each(|id| tracing::debug!("Commands: {id:#?}"));
-        // GuildId::delete_application_command(&guild_id, &ctx.http));
-
-        let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-            commands
-                .create_application_command(|command| PingCommand::register(command))
-                .create_application_command(|command| IdCommand::register(command))
-                .create_application_command(|command| StatisticsCommand::register(command))
-        })
-        .await;
-
-        tracing::debug!("Created guild slash commands: {commands:#?}");
-
-        let guild_command = Command::create_global_application_command(&ctx.http, |command| {
-            PingCommand::register(command);
-            IdCommand::register(command);
-            StatisticsCommand::register(command);
-
-            command
-        })
-        .await;
-
-        tracing::debug!("Created global slash commands: {guild_command:#?}");
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {

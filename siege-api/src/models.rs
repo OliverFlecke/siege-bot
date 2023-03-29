@@ -174,16 +174,141 @@ pub enum PlayType {
     Warmup,
 }
 
-#[derive(Debug, Deserialize, Getters)]
-#[serde(rename_all = "camelCase")]
-pub struct OperatorStatisticResponse {
-    profile_id: Uuid,
-    #[serde(deserialize_with = "mappers::int_to_naive_date")]
-    start_date: NaiveDate,
-    #[serde(deserialize_with = "mappers::int_to_naive_date")]
-    end_date: NaiveDate,
-    region: String,
-    stat_type: String,
+pub use operator::*;
+
+mod operator {
+    use super::*;
+
+    #[derive(Debug)]
+    pub enum Role {
+        All,
+        Attacker,
+        Defender,
+    }
+
+    #[derive(Debug, Deserialize, Getters)]
+    #[serde(rename_all = "camelCase")]
+    pub struct OperatorStatisticResponse {
+        profile_id: Uuid,
+        #[serde(deserialize_with = "mappers::int_to_naive_date")]
+        start_date: NaiveDate,
+        #[serde(deserialize_with = "mappers::int_to_naive_date")]
+        end_date: NaiveDate,
+        region: String,
+        stat_type: String,
+
+        #[getter(skip)]
+        platforms: Platforms,
+    }
+
+    impl OperatorStatisticResponse {
+        pub fn get_operators(&self, role: Role) -> Option<&Vec<Operator>> {
+            let roles = match self.platforms.pc.game_modes.all.as_ref() {
+                Some(r) => r,
+                None => return None,
+            };
+
+            match role {
+                Role::All => Some(&roles.team_roles.all),
+                Role::Attacker => Some(&roles.team_roles.attacker),
+                Role::Defender => Some(&roles.team_roles.defenders),
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct Platforms {
+        #[serde(rename = "PC")]
+        pc: OperatorResponsePlatform,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct OperatorResponsePlatform {
+        game_modes: GameModes,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct GameModes {
+        all: Option<Mode>,
+        #[allow(dead_code)]
+        ranked: Option<Mode>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Mode {
+        team_roles: Roles,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Roles {
+        all: Vec<Operator>,
+        #[serde(rename = "Defender")]
+        defenders: Vec<Operator>,
+        #[serde(rename = "Attacker")]
+        attacker: Vec<Operator>,
+    }
+
+    #[derive(Debug, Deserialize, Getters)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Operator {
+        // type: String, // Seems to always be `Generalized`
+        // stats_type: String, // Seems to always be `operators`
+        #[serde(rename = "statsDetail")]
+        name: String,
+        matches_played: u64,
+        rounds_played: u64,
+        minutes_played: u64,
+        matches_won: u64,
+        matches_lost: u64,
+        rounds_won: u64,
+        rounds_lost: u64,
+        kills: u64,
+        assists: u64,
+        death: u64,
+        headshots: u64,
+        melee_kills: u64,
+        team_kills: u64,
+        opening_kills: u64,
+        opening_deaths: u64,
+        trades: u64,
+        opening_kill_trades: u64,
+        opening_death_trades: u64,
+        revives: u64,
+        distance_travelled: u64,
+        win_loss_ratio: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        kill_death_ratio: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        headshot_accuracy: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        kills_per_round: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_with_a_kill: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_with_multi_kill: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_with_opening_kill: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_with_opening_death: f64,
+        #[serde(
+            deserialize_with = "mappers::extract_nested_float_value",
+            rename = "roundsWithKOST"
+        )]
+        rounds_with_kost: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_survived: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_with_an_ace: f64,
+        #[serde(deserialize_with = "mappers::extract_nested_float_value")]
+        rounds_with_clutch: f64,
+        time_alive_per_match: f64,
+        time_dead_per_match: f64,
+        distance_per_round: f64,
+    }
 }
 
 mod mappers {
@@ -212,5 +337,19 @@ mod mappers {
         let s: usize = Deserialize::deserialize(deserializer)?;
 
         Ok(NaiveDate::parse_from_str(s.to_string().as_str(), "%Y%m%d").unwrap())
+    }
+
+    pub fn extract_nested_float_value<'de, D>(deserializer: D) -> Result<f64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let item: PercentValue = Deserialize::deserialize(deserializer)?;
+
+        Ok(item.value)
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct PercentValue {
+        value: f64,
     }
 }
