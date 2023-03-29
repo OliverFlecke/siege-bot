@@ -1,4 +1,4 @@
 pub mod auth;
 pub mod client;
 mod constants;
-mod models;
+pub mod models;

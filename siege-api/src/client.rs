@@ -182,8 +182,6 @@ impl SetHeaders for RequestBuilder {
 }
 
 fn create_operators_url(player_id: Uuid) -> Url {
-    // Url::parse("https://prod.datadev.ubisoft.com/v1/profiles/e7679633-31ff-4f44-8cfd-d0ff81e2c10a/playerstats?spaceId=5172a557-50b5-4665-b7db-e3f2e8c5041d&view=current&aggregation=operators&gameMode=all,ranked,casual,unranked&platformGroup=PC&teamRole=all,Attacker,Defender").unwrap()
-
     fn format_date(date: NaiveDate) -> String {
         date.format("%Y%m%d").to_string()
     }
@@ -256,6 +254,13 @@ mod test {
 
         let stats = client.get_operators(mock_player_id()).await.unwrap();
         println!("{:?}", stats);
+    }
+
+    #[tokio::test]
+    async fn statistic2_api() {
+        let client = create_client_from_environment().await;
+
+        client.get_statistics(mock_player_id()).await.unwrap();
     }
 
     #[tokio::test]
