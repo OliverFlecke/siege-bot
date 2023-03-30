@@ -14,7 +14,7 @@ use serenity::{
     prelude::Context,
     utils::Color,
 };
-use siege_api::models::Operator;
+use siege_api::{models::OperatorStatistics, operator::Operator};
 
 use crate::{commands::CommandError, SiegeApi, SiegePlayerLookup};
 
@@ -33,8 +33,19 @@ impl CommandHandler for OperatorCommand {
                     .name("operator")
                     .description("Name of the operator")
                     .kind(CommandOptionType::String)
-                    .required(true)
-                    .add_string_choice("Aruni", "Aruni")
+                    .required(true);
+
+                // Note: Left this out for now, as Discord only support up to 25 options 😒
+
+                // use strum::IntoEnumIterator;
+                // Operator::iter()
+                //     .take(25)
+                //     .map(|op| op.to_string())
+                //     .for_each(|op| {
+                //         option.add_string_choice(op.as_str(), op.as_str());
+                //     });
+
+                option
             })
             .create_option(|option| {
                 option
@@ -55,7 +66,7 @@ impl CommandHandler for OperatorCommand {
             .get::<SiegeApi>()
             .expect("Siege client is always registered");
 
-        let operator_name = if let CommandDataOptionValue::String(value) = command
+        let operator = if let CommandDataOptionValue::String(value) = command
             .data
             .options
             .iter()
@@ -65,18 +76,20 @@ impl CommandHandler for OperatorCommand {
             .as_ref()
             .expect("required argument")
         {
-            value
+            value.parse::<Operator>().unwrap() // TODO: Handle unwrap
         } else {
             todo!()
         };
+
+        tracing::debug!("Getting statistics for operator '{operator}'");
 
         let lookup = data.get::<SiegePlayerLookup>().expect("always registered");
         let lookup = lookup.read().await;
         match lookup.get(&user.id) {
             Some(player_id) => {
-                let operators = siege_client.get_operators(*player_id).await.unwrap();
+                let response = siege_client.get_operators(*player_id).await.unwrap();
 
-                let operator = match operators.get_operator(operator_name.as_str()) {
+                let operator = match response.get_operator(operator) {
                     Some(operator) => operator,
                     None => todo!(),
                 };
@@ -110,10 +123,11 @@ impl CommandHandler for OperatorCommand {
 
 /// Create an embedded Discord message for an operator
 fn create_embedded_operator<'a>(
-    operator: &Operator,
+    operator: &OperatorStatistics,
     e: &'a mut CreateEmbed,
 ) -> &'a mut CreateEmbed {
     let values = vec![
+        ("Minutes played", operator.minutes_played().to_string()),
         (
             "Rounds with a kill",
             format!("{:.2} %", 100f64 * operator.rounds_with_a_kill()),

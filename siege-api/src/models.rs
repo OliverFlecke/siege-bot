@@ -177,10 +177,12 @@ pub enum PlayType {
 pub use operator::*;
 
 mod operator {
+    use crate::operator::Operator;
+
     use super::*;
 
     #[derive(Debug)]
-    pub enum Role {
+    pub enum SideOrAll {
         All,
         Attacker,
         Defender,
@@ -202,23 +204,23 @@ mod operator {
     }
 
     impl OperatorStatisticResponse {
-        pub fn get_operators(&self, role: Role) -> Option<&Vec<Operator>> {
+        pub fn get_operators(&self, role: SideOrAll) -> Option<&Vec<OperatorStatistics>> {
             let roles = match self.platforms.pc.game_modes.all.as_ref() {
                 Some(r) => r,
                 None => return None,
             };
 
             match role {
-                Role::All => Some(&roles.team_roles.all),
-                Role::Attacker => Some(&roles.team_roles.attacker),
-                Role::Defender => Some(&roles.team_roles.defenders),
+                SideOrAll::All => Some(&roles.team_roles.all),
+                SideOrAll::Attacker => Some(&roles.team_roles.attacker),
+                SideOrAll::Defender => Some(&roles.team_roles.defenders),
             }
         }
 
         /// Get an operator with a specific name.
-        pub fn get_operator(&self, name: &str) -> Option<&Operator> {
-            self.get_operators(Role::All)
-                .and_then(|x| x.iter().find(|op| op.name == name))
+        pub fn get_operator(&self, operator: Operator) -> Option<&OperatorStatistics> {
+            self.get_operators(SideOrAll::All)
+                .and_then(|x| x.iter().find(|op| op.name == operator))
         }
     }
 
@@ -251,20 +253,20 @@ mod operator {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct Roles {
-        all: Vec<Operator>,
+        all: Vec<OperatorStatistics>,
         #[serde(rename = "Defender")]
-        defenders: Vec<Operator>,
+        defenders: Vec<OperatorStatistics>,
         #[serde(rename = "Attacker")]
-        attacker: Vec<Operator>,
+        attacker: Vec<OperatorStatistics>,
     }
 
     #[derive(Debug, Deserialize, Getters)]
     #[serde(rename_all = "camelCase")]
-    pub struct Operator {
+    pub struct OperatorStatistics {
         // type: String, // Seems to always be `Generalized`
         // stats_type: String, // Seems to always be `operators`
         #[serde(rename = "statsDetail")]
-        name: String,
+        name: Operator,
         matches_played: u64,
         rounds_played: u64,
         minutes_played: u64,
@@ -319,12 +321,12 @@ mod operator {
         distance_per_round: f64,
     }
 
-    impl Operator {
+    impl OperatorStatistics {
         /// Get a URL for the avatar for this operator.
         pub fn avatar_url(&self) -> String {
             format!(
                 "https://r6operators.marcopixel.eu/icons/png/{}.png",
-                self.name.to_lowercase()
+                self.name.to_string().to_lowercase()
             )
         }
 
