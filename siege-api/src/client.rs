@@ -150,13 +150,7 @@ impl Client {
         player_id: Uuid,
     ) -> Result<OperatorStatisticResponse, Box<dyn std::error::Error>> {
         let url = create_operators_url(player_id);
-        println!("URL: {url}");
-
         let response = self.client.get(url).set_headers(&self.auth).send().await?;
-
-        println!("Status: {}", response.status());
-        // println!("Body: {}", response.text().await?);
-        // todo!()
 
         Ok(response.json::<OperatorStatisticResponse>().await?)
     }
@@ -183,6 +177,7 @@ impl SetHeaders for RequestBuilder {
 }
 
 fn create_operators_url(player_id: Uuid) -> Url {
+    #[allow(dead_code)]
     fn format_date(date: NaiveDate) -> String {
         date.format("%Y%m%d").to_string()
     }
@@ -191,6 +186,7 @@ fn create_operators_url(player_id: Uuid) -> Url {
     // Or maybe it just cannot go earlier than 2022-11-25. Not sure what is special about that date.
     // let start_date = NaiveDate::from_ymd_opt(2022, 11, 25).expect("is a valid date"); // TODO: Find a proper default
     let end_date = Utc::now().date_naive();
+    #[allow(unused_variables)]
     let start_date = end_date
         .checked_sub_months(Months::new(3))
         .expect("should be valid");
@@ -216,8 +212,8 @@ fn create_operators_url(player_id: Uuid) -> Url {
                 "teamRole",
                 vec!["all", "Attacker", "Defender"].join(",").as_str(),
             ),
-            ("startDate", format_date(start_date).as_str()),
-            ("endDate", format_date(end_date).as_str()),
+            // ("startDate", format_date(start_date).as_str()),
+            // ("endDate", format_date(end_date).as_str()),
         ],
     )
     .expect("is a valid url")

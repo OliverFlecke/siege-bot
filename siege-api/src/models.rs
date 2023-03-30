@@ -214,6 +214,12 @@ mod operator {
                 Role::Defender => Some(&roles.team_roles.defenders),
             }
         }
+
+        /// Get an operator with a specific name.
+        pub fn get_operator(&self, name: &str) -> Option<&Operator> {
+            self.get_operators(Role::All)
+                .and_then(|x| x.iter().find(|op| op.name == name))
+        }
     }
 
     #[derive(Debug, Deserialize)]
@@ -268,7 +274,8 @@ mod operator {
         rounds_lost: u64,
         kills: u64,
         assists: u64,
-        death: u64,
+        #[serde(rename = "death")]
+        deaths: u64,
         headshots: u64,
         melee_kills: u64,
         team_kills: u64,
@@ -305,9 +312,33 @@ mod operator {
         rounds_with_an_ace: f64,
         #[serde(deserialize_with = "mappers::extract_nested_float_value")]
         rounds_with_clutch: f64,
-        time_alive_per_match: f64,
-        time_dead_per_match: f64,
+        #[serde(deserialize_with = "mappers::float_to_duration")]
+        time_alive_per_match: Duration,
+        #[serde(deserialize_with = "mappers::float_to_duration")]
+        time_dead_per_match: Duration,
         distance_per_round: f64,
+    }
+
+    impl Operator {
+        /// Get a URL for the avatar for this operator.
+        pub fn avatar_url(&self) -> String {
+            format!(
+                "https://r6operators.marcopixel.eu/icons/png/{}.png",
+                self.name.to_lowercase()
+            )
+        }
+
+        pub fn opening_win_rate(&self) -> f64 {
+            self.opening_kills as f64 / (self.opening_kills + self.opening_deaths).max(1) as f64
+        }
+
+        pub fn matches_win_rate(&self) -> f64 {
+            self.matches_won as f64 / self.matches_played as f64
+        }
+
+        pub fn rounds_win_rate(&self) -> f64 {
+            self.rounds_won as f64 / self.rounds_played as f64
+        }
     }
 }
 
@@ -351,5 +382,15 @@ mod mappers {
     #[derive(Debug, Deserialize)]
     struct PercentValue {
         value: f64,
+    }
+
+    pub fn float_to_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let item: f64 = Deserialize::deserialize(deserializer)?;
+        let duration = Duration::milliseconds((item * 1000f64).round() as i64);
+
+        Ok(duration)
     }
 }

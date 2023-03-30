@@ -9,38 +9,47 @@ use serenity::{
     },
     prelude::*,
 };
+use std::{collections::HashMap, sync::Arc};
 
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use commands::CommandHandler;
+use uuid::Uuid;
 
 use crate::commands::{
-    id::IdCommand, ping::PingCommand, statistics::StatisticsCommand, CommandError,
+    id::IdCommand, operator::OperatorCommand, ping::PingCommand, statistics::StatisticsCommand,
+    CommandError,
 };
 
 struct Handler;
 
 async fn sync_commands(guild_id: GuildId, ctx: &Context) {
-    let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+    tracing::info!("Syncing commands to {guild_id}");
+    match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
         commands
             .create_application_command(|command| PingCommand::register(command))
             .create_application_command(|command| IdCommand::register(command))
             .create_application_command(|command| StatisticsCommand::register(command))
+            .create_application_command(|command| OperatorCommand::register(command))
     })
-    .await;
+    .await
+    {
+        Ok(commands) => tracing::trace!("Create guild slash commands: {commands:#?}"),
+        Err(err) => tracing::error!("Failed to create guild commands: {err:#?}"),
+    };
 
-    tracing::trace!("Created guild slash commands: {commands:#?}");
-
-    let guild_command = Command::create_global_application_command(&ctx.http, |command| {
-        PingCommand::register(command);
-        IdCommand::register(command);
-        StatisticsCommand::register(command);
-
-        command
+    match Command::set_global_application_commands(&ctx.http, |commands| {
+        commands
+            .create_application_command(|command| PingCommand::register(command))
+            .create_application_command(|command| IdCommand::register(command))
+            .create_application_command(|command| StatisticsCommand::register(command))
+            .create_application_command(|command| OperatorCommand::register(command))
     })
-    .await;
-
-    tracing::trace!("Created global slash commands: {guild_command:#?}");
+    .await
+    {
+        Ok(commands) => tracing::trace!("Created global slash commands: {commands:#?}"),
+        Err(err) => tracing::error!("Failed to create commands: {err:#?}"),
+    };
 }
 
 #[async_trait]
@@ -76,6 +85,7 @@ impl EventHandler for Handler {
                 "ping" => PingCommand::run(&ctx, &command).await,
                 "id" => IdCommand::run(&ctx, &command).await,
                 "statistics" => StatisticsCommand::run(&ctx, &command).await,
+                "operator" => OperatorCommand::run(&ctx, &command).await,
                 _ => Err(CommandError::CommandNotFound),
             };
 
@@ -90,6 +100,12 @@ struct SiegeApi;
 
 impl TypeMapKey for SiegeApi {
     type Value = siege_api::client::Client;
+}
+
+struct SiegePlayerLookup;
+
+impl TypeMapKey for SiegePlayerLookup {
+    type Value = Arc<RwLock<HashMap<UserId, Uuid>>>;
 }
 
 #[tokio::main]
@@ -111,13 +127,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shard_manager = client.shard_manager.clone();
 
     {
-        let mut data = client.data.write().await;
-        let client: siege_api::client::Client = siege_api::auth::Auth::from_environment()
+        let siege_client: siege_api::client::Client = siege_api::auth::Auth::from_environment()
             .connect()
             .await
             .unwrap()
             .into();
-        data.insert::<SiegeApi>(client);
+        let mut data = client.data.write().await;
+        data.insert::<SiegeApi>(siege_client);
+    }
+    {
+        // TODO: Serialize to disk to be persisted
+        let mut lookup = HashMap::new();
+        lookup.insert(
+            UserId::from(394273324236144641),
+            Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid"),
+        );
+        let mut data = client.data.write().await;
+        data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(lookup)));
     }
 
     tokio::spawn(async move {

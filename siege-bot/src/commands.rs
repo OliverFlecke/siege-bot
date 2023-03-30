@@ -1,14 +1,19 @@
 use async_trait::async_trait;
 use serenity::{
     builder::CreateApplicationCommand,
-    model::prelude::interaction::{
-        application_command::ApplicationCommandInteraction, InteractionResponseType,
+    model::{
+        prelude::interaction::{
+            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+            InteractionResponseType,
+        },
+        user::User,
     },
     prelude::Context,
 };
 use thiserror::Error;
 
 pub mod id;
+pub mod operator;
 pub mod ping;
 pub mod statistics;
 
@@ -44,4 +49,20 @@ async fn send_text_message(
         })
         .await
         .map_err(CommandError::SerenityError)
+}
+
+fn get_user_or_default(command: &ApplicationCommandInteraction) -> &User {
+    match command
+        .data
+        .options
+        .iter()
+        .filter(|x| x.name == "user")
+        .last()
+    {
+        Some(opt) => match opt.resolved.as_ref() {
+            Some(CommandDataOptionValue::User(user, _)) => user,
+            _ => &command.user,
+        },
+        _ => &command.user,
+    }
 }

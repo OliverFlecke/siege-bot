@@ -4,8 +4,7 @@ use serenity::{
     model::prelude::{
         command::CommandOptionType,
         interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-            InteractionResponseType,
+            application_command::ApplicationCommandInteraction, InteractionResponseType,
         },
     },
     prelude::Context,
@@ -15,7 +14,7 @@ use uuid::Uuid;
 
 use crate::{commands::CommandError, SiegeApi};
 
-use super::CommandHandler;
+use super::{get_user_or_default, CommandHandler};
 
 pub struct StatisticsCommand;
 
@@ -38,16 +37,9 @@ impl CommandHandler for StatisticsCommand {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<(), super::CommandError> {
-        let user = match command.data.options.get(0) {
-            Some(opt) => match opt.resolved.as_ref() {
-                Some(CommandDataOptionValue::User(user, _)) => user,
-                _ => &command.user,
-            },
-            _ => &command.user,
-        };
+        let user = get_user_or_default(command);
 
         let data = ctx.data.read().await;
-
         let siege_client = data
             .get::<SiegeApi>()
             .expect("Siege client is always registered");
