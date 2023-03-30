@@ -8,7 +8,7 @@ use crate::game_models::{Health, Role, Season, Side, Speed};
 
 pub use data::get_operator_details;
 
-#[derive(Debug, Deserialize, PartialEq, Eq, EnumString, Display, EnumIter)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, EnumString, Display, EnumIter)]
 pub enum Operator {
     Brava,
     Solis,

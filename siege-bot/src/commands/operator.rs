@@ -6,6 +6,7 @@ use serenity::{
             command::CommandOptionType,
             interaction::{
                 application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+                autocomplete::AutocompleteInteraction,
                 InteractionResponseType,
             },
         },
@@ -22,6 +23,8 @@ use super::{get_user_or_default, send_text_message, CommandHandler};
 
 pub struct OperatorCommand;
 
+static NAME: &str = "name";
+
 #[async_trait]
 impl CommandHandler for OperatorCommand {
     fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
@@ -30,9 +33,10 @@ impl CommandHandler for OperatorCommand {
             .description("Get detailed statistics about an operator")
             .create_option(|option| {
                 option
-                    .name("operator")
+                    .name(NAME)
                     .description("Name of the operator")
                     .kind(CommandOptionType::String)
+                    .set_autocomplete(true)
                     .required(true);
 
                 // Note: Left this out for now, as Discord only support up to 25 options 😒
@@ -70,7 +74,7 @@ impl CommandHandler for OperatorCommand {
             .data
             .options
             .iter()
-            .find(|x| x.name == "operator")
+            .find(|x| x.name == NAME)
             .expect("required argument")
             .resolved
             .as_ref()
@@ -91,7 +95,17 @@ impl CommandHandler for OperatorCommand {
 
                 let operator = match response.get_operator(operator) {
                     Some(operator) => operator,
-                    None => todo!(),
+                    None => {
+                        send_text_message(
+                            &ctx,
+                            &command,
+                            format!("{user} has not played as {operator}", user = user.tag())
+                                .as_str(),
+                        )
+                        .await?;
+
+                        return Ok(());
+                    }
                 };
 
                 command
@@ -115,6 +129,41 @@ impl CommandHandler for OperatorCommand {
                 )
                 .await?
             }
+        }
+
+        Ok(())
+    }
+}
+
+impl OperatorCommand {
+    pub async fn handle_autocomplete(
+        ctx: &Context,
+        interaction: &AutocompleteInteraction,
+    ) -> Result<(), CommandError> {
+        if let Some(value) = interaction
+            .data
+            .options
+            .iter()
+            .find(|option| option.name == NAME)
+            .and_then(|x| x.value.clone())
+        {
+            let value = value.as_str().expect("this should always be a string");
+            interaction
+                .create_autocomplete_response(&ctx.http, |response| {
+                    use strum::IntoEnumIterator;
+                    Operator::iter()
+                        .map(|op| op.to_string())
+                        .filter(|op| op.starts_with(value))
+                        .take(25)
+                        .map(|op| op.to_string())
+                        .for_each(|op| {
+                            response.add_string_choice(op.as_str(), op.as_str());
+                        });
+
+                    response
+                })
+                .await
+                .map_err(CommandError::SerenityError)?;
         }
 
         Ok(())

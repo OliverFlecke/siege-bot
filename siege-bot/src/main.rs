@@ -75,23 +75,38 @@ impl EventHandler for Handler {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
-            tracing::trace!(
-                "Received command interation from {guild_id:?}: {command:#?}",
-                guild_id = command.guild_id
-            );
+        match interaction {
+            Interaction::ApplicationCommand(command) => {
+                tracing::trace!(
+                    "Received command interation from {guild_id:?}: {command:#?}",
+                    guild_id = command.guild_id
+                );
 
-            let result = match command.data.name.as_str() {
-                "ping" => PingCommand::run(&ctx, &command).await,
-                "id" => IdCommand::run(&ctx, &command).await,
-                "statistics" => StatisticsCommand::run(&ctx, &command).await,
-                "operator" => OperatorCommand::run(&ctx, &command).await,
-                _ => Err(CommandError::CommandNotFound),
-            };
+                let result = match command.data.name.as_str() {
+                    "ping" => PingCommand::run(&ctx, &command).await,
+                    "id" => IdCommand::run(&ctx, &command).await,
+                    "statistics" => StatisticsCommand::run(&ctx, &command).await,
+                    "operator" => OperatorCommand::run(&ctx, &command).await,
+                    _ => Err(CommandError::CommandNotFound),
+                };
 
-            if let Err(why) = result {
-                tracing::error!("Failed to response to command: {why}");
+                if let Err(why) = result {
+                    tracing::error!("Failed to response to command: {why}");
+                }
             }
+            Interaction::Autocomplete(autocomplete) => {
+                tracing::trace!("Autocomplete request: {autocomplete:#?}");
+
+                match autocomplete.data.name.as_str() {
+                    "operator" => {
+                        OperatorCommand::handle_autocomplete(&ctx, &autocomplete)
+                            .await
+                            .unwrap();
+                    }
+                    name => tracing::warn!("Autocomplete for {name} not handled"),
+                }
+            }
+            _ => tracing::warn!("Unhanled interation: {interaction:?}"),
         }
     }
 }
