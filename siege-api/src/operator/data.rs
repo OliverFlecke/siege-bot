@@ -5,6 +5,19 @@ use crate::{
 
 pub fn get_operator_details(operator: Operator) -> OperatorDetails {
     match operator {
+        Operator::Brava => OperatorDetails {
+            realname: "Nayara Cardoso".to_string(),
+            birthplace: "Curitiba, Brazil".to_string(),
+            age: 40,
+            date_of_birth: "January 10th".to_string(),
+            season_introduced: Season::Y8S1,
+            health: Health::Low,
+            speed: Speed::Fast,
+            unit: "S.A.T".to_string(),
+            country_code: "BR".to_string(),
+            roles: vec![Role::IntelGatherer, Role::AntiGadget],
+            side: Side::Attacker,
+        },
         Operator::Solis => OperatorDetails {
             realname: "Ana Valentina Díaz".to_string(),
             birthplace: "Zipaquirá, Colombia".to_string(),

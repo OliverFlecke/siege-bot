@@ -10,6 +10,7 @@ pub use data::get_operator_details;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, EnumString, Display, EnumIter)]
 pub enum Operator {
+    Brava,
     Solis,
     Grim,
     Sens,

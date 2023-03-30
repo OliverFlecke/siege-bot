@@ -1,7 +1,9 @@
 use serde::Deserialize;
+use strum::{Display, EnumString};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, EnumString, Display)]
 pub enum Season {
+    Y8S1,
     Y7S4,
     Y7S3,
     Y7S2,
@@ -75,4 +77,5 @@ pub enum Role {
     Shield,
     SoftBreach,
     Trap,
+    AntiGadget,
 }
