@@ -97,8 +97,8 @@ impl CommandHandler for OperatorCommand {
                     Some(operator) => operator,
                     None => {
                         send_text_message(
-                            &ctx,
-                            &command,
+                            ctx,
+                            command,
                             format!("{user} has not played as {operator}", user = user.tag())
                                 .as_str(),
                         )
@@ -155,7 +155,6 @@ impl OperatorCommand {
                         .map(|op| op.to_string())
                         .filter(|op| op.starts_with(value))
                         .take(25)
-                        .map(|op| op.to_string())
                         .for_each(|op| {
                             response.add_string_choice(op.as_str(), op.as_str());
                         });
@@ -258,9 +257,9 @@ fn create_embedded_operator<'a>(
         .timestamp(Timestamp::now())
         .thumbnail(operator.avatar_url())
         .field(
-            "Kills", 
+            "Kills",
             format!(
-                "K/D: **{kd:.2}** - KDA: **{kills}** / **{deaths}** / **{assists}**", 
+                "K/D: **{kd:.2}** - KDA: **{kills}** / **{deaths}** / **{assists}**",
                 kd = operator.kill_death_ratio(),
                 kills = operator.kills(),
                 deaths = operator.deaths(),
