@@ -83,6 +83,16 @@ pub enum Operator {
     Recruit,
 }
 
+impl Operator {
+    /// Get a URL for the avatar for this operator.
+    pub fn avatar_url(&self) -> String {
+        format!(
+            "https://r6operators.marcopixel.eu/icons/png/{}.png",
+            self.to_string().to_lowercase()
+        )
+    }
+}
+
 #[derive(Debug, Getters)]
 pub struct OperatorDetails {
     realname: String,

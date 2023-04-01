@@ -15,7 +15,7 @@ use serenity::{
     prelude::Context,
     utils::Color,
 };
-use siege_api::{models::OperatorStatistics, operator::Operator};
+use siege_api::{models::Statistics, operator::Operator};
 
 use crate::{commands::CommandError, SiegeApi, SiegePlayerLookup};
 
@@ -113,8 +113,14 @@ impl CommandHandler for OperatorCommand {
                         response
                             .kind(InteractionResponseType::ChannelMessageWithSource)
                             .interaction_response_data(|msg| {
-                                msg.embed(|e| {
-                                    create_embedded_operator(operator, e).color(Color::BLUE)
+                                msg.embed(|embed| {
+                                    embed
+                                        .thumbnail(operator.name().avatar_url())
+                                        .title(format!(
+                                            "Operator statistics for {}",
+                                            operator.name()
+                                        ))
+                                        .color(Color::BLUE).format(operator.statistics())
                                 })
                             })
                     })
@@ -169,126 +175,128 @@ impl OperatorCommand {
     }
 }
 
-/// Create an embedded Discord message for an operator
-fn create_embedded_operator<'a>(
-    operator: &OperatorStatistics,
-    e: &'a mut CreateEmbed,
-) -> &'a mut CreateEmbed {
-    let values = vec![
-        ("Minutes played", operator.minutes_played().to_string()),
-        (
-            "Rounds with a kill",
-            format!("{:.2} %", 100f64 * operator.rounds_with_a_kill()),
-        ),
-        (
-            "Rounds with KOST",
-            format!("{:.2} %", 100f64 * operator.rounds_with_kost()),
-        ),
-        (
-            "Rounds with a multi kills",
-            format!("{:.2} %", 100f64 * operator.rounds_with_multi_kill()),
-        ),
-        (
-            "Rounds with opening kill",
-            format!(
-                "{:.2} % ({})",
-                100f64 * operator.rounds_with_opening_kill(),
-                operator.opening_kills(),
-            ),
-        ),
-        (
-            "Rounds with opening death",
-            format!(
-                "{:.2} % ({})",
-                100f64 * operator.rounds_with_opening_death(),
-                operator.opening_deaths(),
-            ),
-        ),
-        (
-            "Opening winrate",
-            format!("{:.2} %", 100f64 * operator.opening_win_rate()),
-        ),
-        (
-            "Rounds survived",
-            format!("{:.2} %", 100f64 * operator.rounds_survived()),
-        ),
-        (
-            "Rounds with an ace",
-            format!("{:.2} %", 100f64 * operator.rounds_with_an_ace()),
-        ),
-        (
-            "Rounds with a clutch",
-            format!("{:.2} %", 100f64 * operator.rounds_with_clutch()),
-        ),
-        (
-            "Kills per round",
-            format!("{:.2} %", 100f64 * operator.kills_per_round()),
-        ),
-        (
-            "Headshots",
-            format!(
-                "{:.2} % ({})",
-                100f64 * operator.headshot_accuracy(),
-                operator.headshots(),
-            ),
-        ),
-        ("Melee kills", operator.melee_kills().to_string()),
-        ("Team kills", operator.team_kills().to_string()),
-        ("Trades", operator.trades().to_string()),
-        ("Revives", operator.revives().to_string()),
-        (
-            "Time alive per match",
-            operator.time_alive_per_match().to_string(),
-        ),
-        (
-            "Time dead per match",
-            operator.time_dead_per_match().to_string(),
-        ),
-    ];
+trait FormatEmbedded<'a, T> {
+    fn format(&'a mut self, value: &T) -> &'a mut Self;
+}
 
-    let names = values.iter().map(|x| x.0).collect::<Vec<_>>().join("\n");
-    let values = values
-        .iter()
-        .map(|x| x.1.as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
+/// Create an embedded Discord message with statistics information.
+impl FormatEmbedded<'_, Statistics> for CreateEmbed {
+    fn format(&mut self, statistics: &Statistics) -> &mut Self {
+        let values = vec![
+            ("Minutes played", statistics.minutes_played().to_string()),
+            (
+                "Rounds with a kill",
+                format!("{:.2} %", 100f64 * statistics.rounds_with_a_kill()),
+            ),
+            (
+                "Rounds with KOST",
+                format!("{:.2} %", 100f64 * statistics.rounds_with_kost()),
+            ),
+            (
+                "Rounds with a multi kills",
+                format!("{:.2} %", 100f64 * statistics.rounds_with_multi_kill()),
+            ),
+            (
+                "Rounds with opening kill",
+                format!(
+                    "{:.2} % ({})",
+                    100f64 * statistics.rounds_with_opening_kill(),
+                    statistics.opening_kills(),
+                ),
+            ),
+            (
+                "Rounds with opening death",
+                format!(
+                    "{:.2} % ({})",
+                    100f64 * statistics.rounds_with_opening_death(),
+                    statistics.opening_deaths(),
+                ),
+            ),
+            (
+                "Opening winrate",
+                format!("{:.2} %", 100f64 * statistics.opening_win_rate()),
+            ),
+            (
+                "Rounds survived",
+                format!("{:.2} %", 100f64 * statistics.rounds_survived()),
+            ),
+            (
+                "Rounds with an ace",
+                format!("{:.2} %", 100f64 * statistics.rounds_with_an_ace()),
+            ),
+            (
+                "Rounds with a clutch",
+                format!("{:.2} %", 100f64 * statistics.rounds_with_clutch()),
+            ),
+            (
+                "Kills per round",
+                format!("{:.2} %", 100f64 * statistics.kills_per_round()),
+            ),
+            (
+                "Headshots",
+                format!(
+                    "{:.2} % ({})",
+                    100f64 * statistics.headshot_accuracy(),
+                    statistics.headshots(),
+                ),
+            ),
+            ("Melee kills", statistics.melee_kills().to_string()),
+            ("Team kills", statistics.team_kills().to_string()),
+            ("Trades", statistics.trades().to_string()),
+            ("Revives", statistics.revives().to_string()),
+            (
+                "Time alive per match",
+                statistics.time_alive_per_match().to_string(),
+            ),
+            (
+                "Time dead per match",
+                statistics.time_dead_per_match().to_string(),
+            ),
+        ];
 
-    e.title(format!("Operator statistics for {}", operator.name()))
-        .timestamp(Timestamp::now())
-        .thumbnail(operator.avatar_url())
-        .field(
-            "Kills",
-            format!(
-                "K/D: **{kd:.2}** - KDA: **{kills}** / **{deaths}** / **{assists}**",
-                kd = operator.kill_death_ratio(),
-                kills = operator.kills(),
-                deaths = operator.deaths(),
-                assists = operator.assists(),
-             ),
-            false,
-        )
-        .field(
-            "Matches",
-            format!(
-                "Win rate **{win_rate:.2} %** Played/Win/Lost: **{total}** / **{wins}** / **{lost}**",
-                win_rate = 100f64 * operator.matches_win_rate(),
-                total = operator.matches_played(),
-                wins = operator.matches_won(),
-                lost = operator.matches_lost(),
-            ),
-            false,
-        )
-        .field(
-            "Rounds",
-            format!(
-                "Win rate **{win_rate:.2} %** Played/Win/Lost: **{total}** / **{wins}** / **{lost}**",
-                win_rate = 100f64 * operator.rounds_win_rate(),
-                total = operator.rounds_played(),
-                wins = operator.rounds_won(),
-                lost = operator.rounds_lost(),
-            ),
-            false,
-        )
-        .field("Statistic", names, true)
-        .field("Value", values, true)
+        let names = values.iter().map(|x| x.0).collect::<Vec<_>>().join("\n");
+        let values = values
+            .iter()
+            .map(|x| x.1.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        self
+            .timestamp(Timestamp::now())
+            .field(
+                "Kills",
+                format!(
+                    "K/D: **{kd:.2}** - KDA: **{kills}** / **{deaths}** / **{assists}**",
+                    kd = statistics.kill_death_ratio(),
+                    kills = statistics.kills(),
+                    deaths = statistics.deaths(),
+                    assists = statistics.assists(),
+                 ),
+                false,
+            )
+            .field(
+                "Matches",
+                format!(
+                    "Win rate **{win_rate:.2} %** Played/Win/Lost: **{total}** / **{wins}** / **{lost}**",
+                    win_rate = 100f64 * statistics.matches_win_rate(),
+                    total = statistics.matches_played(),
+                    wins = statistics.matches_won(),
+                    lost = statistics.matches_lost(),
+                ),
+                false,
+            )
+            .field(
+                "Rounds",
+                format!(
+                    "Win rate **{win_rate:.2} %** Played/Win/Lost: **{total}** / **{wins}** / **{lost}**",
+                    win_rate = 100f64 * statistics.rounds_win_rate(),
+                    total = statistics.rounds_played(),
+                    wins = statistics.rounds_won(),
+                    lost = statistics.rounds_lost(),
+                ),
+                false,
+            )
+            .field("Statistic", names, true)
+            .field("Value", values, true)
+    }
 }

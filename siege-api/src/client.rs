@@ -6,8 +6,8 @@ use uuid::Uuid;
 use crate::auth::{ConnectError, ConnectResponse};
 use crate::constants::{UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
 use crate::models::{
-    FullProfile, OperatorStatisticResponse, PlatformFamily, PlatformType, PlayType,
-    PlaytimeProfile, PlaytimeResponse,
+    FullProfile, PlatformFamily, PlatformType, PlayType, PlaytimeProfile, PlaytimeResponse,
+    StatisticResponse,
 };
 
 #[derive(Debug)]
@@ -145,14 +145,41 @@ impl Client {
         todo!()
     }
 
-    pub async fn get_operators(
+    /// Retreive statistics about operators for a given player.
+    pub async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
+        let url = create_summary_query(player_id, AggregationType::Operators);
+        let response = self
+            .client
+            .get(url)
+            .set_headers(&self.auth)
+            .send()
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
+
+        response
+            .json::<StatisticResponse>()
+            .await
+            .map_err(|_| ConnectError::UnexpectedResponse)
+    }
+
+    pub async fn get_seasonal_summaries(
         &self,
         player_id: Uuid,
-    ) -> Result<OperatorStatisticResponse, Box<dyn std::error::Error>> {
-        let url = create_operators_url(player_id);
-        let response = self.client.get(url).set_headers(&self.auth).send().await?;
+    ) -> Result<StatisticResponse, ConnectError> {
+        let url = create_summary_query(player_id, AggregationType::Summary);
 
-        Ok(response.json::<OperatorStatisticResponse>().await?)
+        let response = self
+            .client
+            .get(url)
+            .set_headers(&self.auth)
+            .send()
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
+
+        response
+            .json::<StatisticResponse>()
+            .await
+            .map_err(|_| ConnectError::UnexpectedResponse)
     }
 }
 
@@ -176,7 +203,13 @@ impl SetHeaders for RequestBuilder {
     }
 }
 
-fn create_operators_url(player_id: Uuid) -> Url {
+#[derive(Debug, strum::Display)]
+pub enum AggregationType {
+    Operators,
+    Summary,
+}
+
+fn create_summary_query(player_id: Uuid, aggregation: AggregationType) -> Url {
     #[allow(dead_code)]
     fn format_date(date: NaiveDate) -> String {
         date.format("%Y%m%d").to_string()
@@ -197,7 +230,10 @@ fn create_operators_url(player_id: Uuid) -> Url {
         &[
             ("view", "current"),
             ("platformGroup", "PC"),
-            ("aggregation", "operators"), // TODO: Could be an argument
+            (
+                "aggregation",
+                aggregation.to_string().to_lowercase().as_str(),
+            ),
             (
                 "spaceId",
                 PlatformType::Uplay.get_space().to_string().as_str(),
@@ -242,7 +278,7 @@ mod test {
     fn operators_url() {
         let expected = "https://prod.datadev.ubisoft.com/v1/profiles/e7679633-31ff-4f44-8cfd-d0ff81e2c10a/playerstats?spaceId=5172a557-50b5-4665-b7db-e3f2e8c5041d&view=current&aggregation=operators&gameMode=all%2Cranked%2Ccasual%2Cunranked&platformGroup=PC&teamRole=all%2CAttacker%2CDefender";
 
-        let actual = create_operators_url(mock_player_id());
+        let actual = create_summary_query(mock_player_id(), AggregationType::Operators);
         assert_eq!(actual.as_str(), expected);
     }
 
@@ -252,6 +288,16 @@ mod test {
 
         let stats = client.get_operators(mock_player_id()).await.unwrap();
         println!("{:?}", stats);
+    }
+
+    #[tokio::test]
+    async fn seasonal_statistics() {
+        let client = create_client_from_environment().await;
+        let response = client
+            .get_seasonal_summaries(mock_player_id())
+            .await
+            .unwrap();
+        println!("{:?}", response);
     }
 
     #[tokio::test]
