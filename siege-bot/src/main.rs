@@ -1,4 +1,5 @@
 mod commands;
+pub mod formatting;
 
 use async_trait::async_trait;
 use serenity::{
