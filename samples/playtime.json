@@ -1,0 +1,37 @@
+{
+	"profiles": [
+		{
+			"profileId": "e7679633-31ff-4f44-8cfd-d0ff81e2c10a",
+			"stats": {
+				"PPvPTimePlayed": {
+					"value": "1303823",
+					"startDate": "2021-08-30T11:10:00.200Z",
+					"endDate": null,
+					"obj": {},
+					"lastModified": "2023-03-26T00:41:19.126Z"
+				},
+				"PClearanceLevel": {
+					"value": "123",
+					"startDate": "2021-08-30T11:15:00.426Z",
+					"endDate": null,
+					"obj": {},
+					"lastModified": "2023-03-25T23:52:59.895Z"
+				},
+				"PPvETimePlayed": {
+					"value": "12209",
+					"startDate": "2021-08-30T11:08:00.415Z",
+					"endDate": null,
+					"obj": {},
+					"lastModified": "2023-03-20T17:13:32.809Z"
+				},
+				"PTotalTimePlayed": {
+					"value": "1368629",
+					"startDate": "2021-08-30T11:13:00.398Z",
+					"endDate": null,
+					"obj": {},
+					"lastModified": "2023-03-26T00:41:19.145Z"
+				}
+			}
+		}
+	]
+}
