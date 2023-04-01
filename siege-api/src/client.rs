@@ -166,6 +166,19 @@ impl Client {
         &self,
         player_id: Uuid,
     ) -> Result<StatisticResponse, ConnectError> {
+        // TODO: The response here does not match correctly. Look into `samples/seasonal.json`.
+        // #[derive(Deserialize)]
+        // #[serde(rename_all = "camelCase")]
+        // struct Response {
+        //     user_id: Uuid,
+        //     profile_data: ProfileData,
+        // }
+
+        // #[derive(Deserialize)]
+        // #[serde(rename_all = "camelCase")]
+        // struct ProfileData {
+
+        // }
         let url = create_summary_query(player_id, AggregationType::Summary);
 
         let response = self
@@ -291,16 +304,18 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "not yet implemented"]
     async fn seasonal_statistics() {
         let client = create_client_from_environment().await;
-        let response = client
+        let stats = client
             .get_seasonal_summaries(mock_player_id())
             .await
             .unwrap();
-        println!("{:?}", response);
+        println!("{:?}", stats);
     }
 
     #[tokio::test]
+    #[ignore = "not yet implemented"]
     async fn statistic2_api() {
         let client = create_client_from_environment().await;
 
