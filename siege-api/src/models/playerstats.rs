@@ -46,9 +46,22 @@ impl StatisticResponse {
             x.iter()
                 .filter_map(|x| match x {
                     GeneralStatistics::Operator(op) => Some(op),
-                    GeneralStatistics::Summary(_) => None,
+                    _ => None,
                 })
                 .find(|op| op.name == operator)
+        })
+    }
+
+    /// Get statistics for a given map.
+    pub fn get_map(&self, map_name: &str) -> Option<&MapStatistics> {
+        self.get_operators(SideOrAll::All).and_then(|stats| {
+            stats
+                .iter()
+                .filter_map(|x| match x {
+                    GeneralStatistics::Maps(map) => Some(map),
+                    _ => None,
+                })
+                .find(|map| map.name().as_str() == map_name.to_uppercase())
         })
     }
 }
@@ -96,6 +109,8 @@ pub enum GeneralStatistics {
     Operator(OperatorStatistics),
     #[serde(rename = "summary")]
     Summary(SeasonalStatistics),
+    #[serde(rename = "maps")]
+    Maps(MapStatistics),
 }
 
 #[derive(Debug, Deserialize, Getters)]
@@ -125,6 +140,16 @@ impl SeasonalStatistics {
         Season::from_str(&format!("{}{}", self.season_year, self.season_number))
             .expect("should always be valid")
     }
+}
+
+#[derive(Debug, Deserialize, Getters)]
+#[serde(rename_all = "camelCase")]
+pub struct MapStatistics {
+    #[serde(rename = "statsDetail")]
+    name: String, // TODO: Could be converted to an enum
+
+    #[serde(flatten)]
+    statistics: Statistics,
 }
 
 /// General statistics that are provided from the `playerstats` endpoint.
@@ -255,8 +280,8 @@ mod test {
         let statistic: GeneralStatistics = serde_json::from_str(sample).unwrap();
 
         match statistic {
-            GeneralStatistics::Operator(_) => assert!(false),
             GeneralStatistics::Summary(_) => {}
+            _ => assert!(false),
         }
     }
 
@@ -307,7 +332,58 @@ mod test {
 
         match statistic {
             GeneralStatistics::Operator(_) => {}
-            GeneralStatistics::Summary(_) => assert!(false),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn deserialize_maps_statistics() {
+        let sample = r#"{
+            "type": "Generalized",
+            "statsType": "maps",
+            "statsDetail": "YACHT",
+            "matchesPlayed": 20,
+            "roundsPlayed": 86,
+            "minutesPlayed": 294,
+            "matchesWon": 8,
+            "matchesLost": 12,
+            "roundsWon": 40,
+            "roundsLost": 46,
+            "kills": 75,
+            "assists": 16,
+            "death": 51,
+            "headshots": 13,
+            "meleeKills": 0,
+            "teamKills": 0,
+            "openingKills": 6,
+            "openingDeaths": 3,
+            "trades": 4,
+            "openingKillTrades": 1,
+            "openingDeathTrades": 0,
+            "revives": 4,
+            "distanceTravelled": 14335,
+            "winLossRatio": 0.6667,
+            "killDeathRatio": { "value": 1.4706, "p": 0.0 },
+            "headshotAccuracy": { "value": 0.1733, "p": 0.0 },
+            "killsPerRound": { "value": 0.8721, "p": 0.0 },
+            "roundsWithAKill": { "value": 0.593, "p": 0.0 },
+            "roundsWithMultiKill": { "value": 0.1977, "p": 0.0 },
+            "roundsWithOpeningKill": { "value": 0.0698, "p": 0.0 },
+            "roundsWithOpeningDeath": { "value": 0.0349, "p": 0.0 },
+            "roundsWithKOST": { "value": 0.7093, "p": 0.0 },
+            "roundsSurvived": { "value": 0.407, "p": 0.0 },
+            "roundsWithAnAce": { "value": 0.0, "p": 0.0 },
+            "roundsWithClutch": { "value": 0.0116, "p": 0.0 },
+            "timeAlivePerMatch": 432.7,
+            "timeDeadPerMatch": 77.5,
+            "distancePerRound": 166.686
+        }"#;
+
+        let statistic: GeneralStatistics = serde_json::from_str(sample).unwrap();
+
+        match statistic {
+            GeneralStatistics::Maps(_) => {}
+            _ => assert!(false),
         }
     }
 }

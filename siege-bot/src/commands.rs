@@ -11,8 +11,10 @@ use serenity::{
     prelude::Context,
 };
 use thiserror::Error;
+use uuid::Uuid;
 
 pub mod id;
+pub mod map;
 pub mod operator;
 pub mod ping;
 pub mod statistics;
@@ -31,8 +33,10 @@ pub trait CommandHandler {
 pub enum CommandError {
     #[error("command does not exists")]
     CommandNotFound,
-    #[error("intenal Discord error")]
+    #[error("internal Discord error")]
     SerenityError(serenity::Error),
+    #[error("Siege player not found")]
+    SiegePlayerNotFound,
 }
 
 /// Utility method to send text back to the channel.
@@ -51,7 +55,8 @@ async fn send_text_message(
         .map_err(CommandError::SerenityError)
 }
 
-fn get_user_or_default(command: &ApplicationCommandInteraction) -> &User {
+/// Extract the user argument from the command, or if not provide, return the user who invoked the command.
+fn get_user_from_command_or_default(command: &ApplicationCommandInteraction) -> &User {
     match command
         .data
         .options
@@ -64,5 +69,35 @@ fn get_user_or_default(command: &ApplicationCommandInteraction) -> &User {
             _ => &command.user,
         },
         _ => &command.user,
+    }
+}
+
+/// Retreive the Siege Id for a Discord user. If it is not found, an error is sent back through the command
+/// and an error is returned.
+async fn lookup_siege_player(
+    ctx: &Context,
+    command: &ApplicationCommandInteraction,
+    user: &User,
+) -> Result<Uuid, CommandError> {
+    let data = ctx.data.read().await;
+    let lookup = data
+        .get::<crate::siege_player_lookup::SiegePlayerLookup>()
+        .expect("always registered");
+    let lookup = lookup.read().await;
+
+    match lookup.get(&user.id) {
+        Some(player_id) => Ok(*player_id),
+        None => {
+            send_text_message(
+                ctx,
+                command,
+                format!(
+                    "No Siege player found for {}.\nUse the `/add` command to link your Discord profile to your Ubisoft name",
+                    user.tag()
+                ).as_str(),
+            )
+            .await?;
+            Err(CommandError::SiegePlayerNotFound)
+        }
     }
 }

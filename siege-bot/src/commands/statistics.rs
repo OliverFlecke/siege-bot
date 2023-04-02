@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::{commands::CommandError, SiegeApi};
 
-use super::{get_user_or_default, CommandHandler};
+use super::{get_user_from_command_or_default, CommandHandler};
 
 pub struct StatisticsCommand;
 
@@ -37,7 +37,7 @@ impl CommandHandler for StatisticsCommand {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<(), super::CommandError> {
-        let user = get_user_or_default(command);
+        let user = get_user_from_command_or_default(command);
 
         let data = ctx.data.read().await;
         let siege_client = data

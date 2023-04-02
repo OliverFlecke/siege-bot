@@ -1,57 +1,66 @@
 mod commands;
+mod constants;
 pub mod formatting;
+pub mod siege_player_lookup;
 
 use async_trait::async_trait;
 use serenity::{
     model::{
-        application::command::Command,
         gateway::Ready,
         prelude::{interaction::Interaction, *},
     },
-    prelude::*,
+    prelude::{Context, EventHandler, RwLock, TypeMapKey},
+    Client,
 };
 use siege_api::auth::Auth;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use commands::CommandHandler;
-use uuid::Uuid;
 
-use crate::commands::{
-    id::IdCommand, operator::OperatorCommand, ping::PingCommand, statistics::StatisticsCommand,
-    CommandError,
+use crate::{
+    commands::{
+        id::IdCommand, map::MapCommand, operator::OperatorCommand, ping::PingCommand,
+        statistics::StatisticsCommand, CommandError,
+    },
+    siege_player_lookup::{PlayerLookup, SiegePlayerLookup},
 };
 
 struct Handler;
 
 async fn sync_commands(guild_id: GuildId, ctx: &Context) {
     tracing::info!("Syncing commands to {guild_id}");
-    // match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-    //     commands
-    //         .create_application_command(|command| PingCommand::register(command))
-    //         .create_application_command(|command| IdCommand::register(command))
-    //         .create_application_command(|command| StatisticsCommand::register(command))
-    //         .create_application_command(|command| OperatorCommand::register(command))
-    // })
-    // .await
-    // {
-    //     Ok(commands) => tracing::trace!("Create guild slash commands: {commands:#?}"),
-    //     Err(err) => tracing::error!("Failed to create guild commands: {err:#?}"),
-    // };
-
-    match Command::set_global_application_commands(&ctx.http, |commands| {
+    match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
         commands
             .create_application_command(|command| PingCommand::register(command))
             .create_application_command(|command| IdCommand::register(command))
             .create_application_command(|command| StatisticsCommand::register(command))
+            .create_application_command(|command| MapCommand::register(command))
             .create_application_command(|command| OperatorCommand::register(command))
     })
     .await
     {
-        Ok(commands) => tracing::trace!("Created global slash commands: {commands:#?}"),
-        Err(err) => tracing::error!("Failed to create commands: {err:#?}"),
+        Ok(commands) => tracing::trace!("Create guild slash commands: {commands:#?}"),
+        Err(err) => tracing::error!("Failed to create guild commands: {err:#?}"),
     };
+
+    // match serenity::model::application::command::Command::set_global_application_commands(
+    //     &ctx.http,
+    //     |commands| {
+    //         commands
+    //             .create_application_command(|command| PingCommand::register(command))
+    //             .create_application_command(|command| IdCommand::register(command))
+    //             .create_application_command(|command| StatisticsCommand::register(command))
+    //             .create_application_command(|command| OperatorCommand::register(command))
+    //             .create_application_command(|command| MapCommand::register(command))
+    //     },
+    // )
+    // .await
+    // {
+    //     Ok(commands) => tracing::trace!("Created global slash commands: {commands:#?}"),
+    //     Err(err) => tracing::error!("Failed to create commands: {err:#?}"),
+    // };
 }
 
 #[async_trait]
@@ -89,6 +98,7 @@ impl EventHandler for Handler {
                     "id" => IdCommand::run(&ctx, &command).await,
                     "statistics" => StatisticsCommand::run(&ctx, &command).await,
                     "operator" => OperatorCommand::run(&ctx, &command).await,
+                    "map" => MapCommand::run(&ctx, &command).await,
                     _ => Err(CommandError::CommandNotFound),
                 };
 
@@ -119,12 +129,6 @@ impl TypeMapKey for SiegeApi {
     type Value = siege_api::client::Client;
 }
 
-struct SiegePlayerLookup;
-
-impl TypeMapKey for SiegePlayerLookup {
-    type Value = Arc<RwLock<HashMap<UserId, Uuid>>>;
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
@@ -150,12 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         data.insert::<SiegeApi>(siege_client);
     }
     {
-        // TODO: Serialize to disk to be persisted
-        let mut lookup = HashMap::new();
-        lookup.insert(
-            UserId::from(394273324236144641),
-            Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid"),
-        );
+        let lookup = PlayerLookup::load()?;
         let mut data = client.data.write().await;
         data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(lookup)));
     }

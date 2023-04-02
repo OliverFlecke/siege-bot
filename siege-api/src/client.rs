@@ -173,8 +173,10 @@ impl Client {
             .await
             .map_err(|_| ConnectError::ConnectionError)?;
 
-        println!("{}", response.text().await.unwrap());
-        todo!()
+        response
+            .json::<StatisticResponse>()
+            .await
+            .map_err(|_| ConnectError::UnexpectedResponse)
     }
 
     pub async fn get_seasonal_summaries(
