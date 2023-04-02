@@ -4,3 +4,4 @@ mod constants;
 pub mod game_models;
 pub mod models;
 pub mod operator;
+pub mod maps;

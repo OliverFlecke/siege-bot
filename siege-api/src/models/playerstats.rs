@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{game_models::Season, operator::Operator};
+use crate::{game_models::Season, maps::Map, operator::Operator};
 
 use super::*;
 
@@ -53,7 +53,7 @@ impl StatisticResponse {
     }
 
     /// Get statistics for a given map.
-    pub fn get_map(&self, map_name: &str) -> Option<&MapStatistics> {
+    pub fn get_map(&self, map_name: Map) -> Option<&MapStatistics> {
         self.get_operators(SideOrAll::All).and_then(|stats| {
             stats
                 .iter()
@@ -61,7 +61,7 @@ impl StatisticResponse {
                     GeneralStatistics::Maps(map) => Some(map),
                     _ => None,
                 })
-                .find(|map| map.name().as_str() == map_name.to_uppercase())
+                .find(|map| *map.name() == map_name)
         })
     }
 }
@@ -146,7 +146,7 @@ impl SeasonalStatistics {
 #[serde(rename_all = "camelCase")]
 pub struct MapStatistics {
     #[serde(rename = "statsDetail")]
-    name: String, // TODO: Could be converted to an enum
+    name: Map,
 
     #[serde(flatten)]
     statistics: Statistics,

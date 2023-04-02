@@ -11,6 +11,7 @@ use serenity::{
     prelude,
     utils::Color,
 };
+use siege_api::maps::Map;
 
 use crate::{
     commands::{get_user_from_command_or_default, lookup_siege_player, send_text_message},
@@ -60,12 +61,12 @@ impl CommandHandler for MapCommand {
             .as_ref()
             .expect("required argument")
         {
-            value
+            value.parse::<Map>().expect("should always be valid")
         } else {
             unreachable!()
         };
 
-        tracing::debug!("Getting statistics for map '{map}'");
+        tracing::debug!("Getting statistics for map '{map:?}'");
 
         let user = get_user_from_command_or_default(command);
         let player_id = lookup_siege_player(ctx, command, user).await?;
@@ -84,7 +85,7 @@ impl CommandHandler for MapCommand {
                 send_text_message(
                     ctx,
                     command,
-                    format!("{user} has not played the '{map}' map", user = user.tag()).as_str(),
+                    format!("{user} has not played the '{map:?}' map", user = user.tag()).as_str(),
                 )
                 .await?;
 
@@ -99,8 +100,8 @@ impl CommandHandler for MapCommand {
                     .interaction_response_data(|msg| {
                         msg.embed(|embed| {
                             embed
-                                // .thumbnail() // TODO: Should have a thumbnail of the map
-                                .title(format!("Map statistics for {}", map.name()))
+                                .thumbnail(map.name().thumbnail())
+                                .title(format!("Map statistics for {:?}", map.name()))
                                 .color(Color::GOLD)
                                 .format(map.statistics())
                         })
