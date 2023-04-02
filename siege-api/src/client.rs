@@ -162,6 +162,21 @@ impl Client {
             .map_err(|_| ConnectError::UnexpectedResponse)
     }
 
+    /// Get maps statistics for a given player.
+    pub async fn get_maps(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
+        let url = create_summary_query(player_id, AggregationType::Maps);
+        let response = self
+            .client
+            .get(url)
+            .set_headers(&self.auth)
+            .send()
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
+
+        println!("{}", response.text().await.unwrap());
+        todo!()
+    }
+
     pub async fn get_seasonal_summaries(
         &self,
         player_id: Uuid,
@@ -220,6 +235,7 @@ impl SetHeaders for RequestBuilder {
 pub enum AggregationType {
     Operators,
     Summary,
+    Maps,
 }
 
 fn create_summary_query(player_id: Uuid, aggregation: AggregationType) -> Url {
@@ -300,6 +316,14 @@ mod test {
         let client = create_client_from_environment().await;
 
         let stats = client.get_operators(mock_player_id()).await.unwrap();
+        println!("{:?}", stats);
+    }
+
+    #[tokio::test]
+    async fn maps_statistics() {
+        let client = create_client_from_environment().await;
+
+        let stats = client.get_maps(mock_player_id()).await.unwrap();
         println!("{:?}", stats);
     }
 

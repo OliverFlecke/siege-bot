@@ -10,6 +10,7 @@ use serenity::{
     },
     prelude::*,
 };
+use siege_api::auth::Auth;
 use std::{collections::HashMap, sync::Arc};
 
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -26,18 +27,18 @@ struct Handler;
 
 async fn sync_commands(guild_id: GuildId, ctx: &Context) {
     tracing::info!("Syncing commands to {guild_id}");
-    match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-        commands
-            .create_application_command(|command| PingCommand::register(command))
-            .create_application_command(|command| IdCommand::register(command))
-            .create_application_command(|command| StatisticsCommand::register(command))
-            .create_application_command(|command| OperatorCommand::register(command))
-    })
-    .await
-    {
-        Ok(commands) => tracing::trace!("Create guild slash commands: {commands:#?}"),
-        Err(err) => tracing::error!("Failed to create guild commands: {err:#?}"),
-    };
+    // match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+    //     commands
+    //         .create_application_command(|command| PingCommand::register(command))
+    //         .create_application_command(|command| IdCommand::register(command))
+    //         .create_application_command(|command| StatisticsCommand::register(command))
+    //         .create_application_command(|command| OperatorCommand::register(command))
+    // })
+    // .await
+    // {
+    //     Ok(commands) => tracing::trace!("Create guild slash commands: {commands:#?}"),
+    //     Err(err) => tracing::error!("Failed to create guild commands: {err:#?}"),
+    // };
 
     match Command::set_global_application_commands(&ctx.http, |commands| {
         commands
@@ -143,11 +144,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shard_manager = client.shard_manager.clone();
 
     {
-        let siege_client: siege_api::client::Client = siege_api::auth::Auth::from_environment()
-            .connect()
-            .await
-            .unwrap()
-            .into();
+        let siege_client: siege_api::client::Client =
+            Auth::from_environment().connect().await.unwrap().into();
         let mut data = client.data.write().await;
         data.insert::<SiegeApi>(siege_client);
     }
