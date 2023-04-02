@@ -13,6 +13,7 @@ use serenity::{
 use thiserror::Error;
 use uuid::Uuid;
 
+pub mod add_player;
 pub mod id;
 pub mod map;
 pub mod operator;

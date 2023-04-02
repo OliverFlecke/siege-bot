@@ -6,8 +6,8 @@ use uuid::Uuid;
 use crate::auth::{ConnectError, ConnectResponse};
 use crate::constants::{UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
 use crate::models::{
-    FullProfile, PlatformFamily, PlatformType, PlayType, PlaytimeProfile, PlaytimeResponse,
-    StatisticResponse,
+    FullProfile, PlatformFamily, PlatformType, PlayType, PlayerProfile, PlaytimeProfile,
+    PlaytimeResponse, StatisticResponse,
 };
 
 #[derive(Debug)]
@@ -211,6 +211,39 @@ impl Client {
             .await
             .map_err(|_| ConnectError::UnexpectedResponse)
     }
+
+    /// Search for a Ubisoft player ID.
+    pub async fn search_for_player(&self, name: &str) -> Result<Uuid, ConnectError> {
+        #[derive(Deserialize)]
+        struct Response {
+            profiles: Vec<PlayerProfile>,
+        }
+
+        let url = "https://public-ubiservices.ubi.com/v3/profiles";
+        let url = Url::parse_with_params(
+            url,
+            &[
+                ("nameOnPlatform", name),
+                ("platformType", PlatformType::Uplay.to_string().as_str()),
+            ],
+        )
+        .expect("should always be a valid url");
+
+        let response = self
+            .client
+            .get(url)
+            .set_headers(&self.auth)
+            .send()
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
+
+        let profile: Response = response
+            .json()
+            .await
+            .map_err(|_| ConnectError::ConnectionError)?;
+
+        Ok(*profile.profiles[0].profile_id())
+    }
 }
 
 trait SetHeaders {
@@ -311,6 +344,17 @@ mod test {
 
         let actual = create_summary_query(mock_player_id(), AggregationType::Operators);
         assert_eq!(actual.as_str(), expected);
+    }
+
+    #[tokio::test]
+    async fn search_player() {
+        let client = create_client_from_environment().await;
+
+        let id = client.search_for_player("NaoFredzibob").await.unwrap();
+        assert_eq!(
+            id,
+            Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("is valid")
+        )
     }
 
     #[tokio::test]

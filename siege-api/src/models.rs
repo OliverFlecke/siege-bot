@@ -11,6 +11,16 @@ pub use playerstats::*;
 /// This section contains all models related to the `playerstats` endpoint
 mod playerstats;
 
+#[derive(Debug, Deserialize, Getters)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayerProfile {
+    profile_id: Uuid,
+    user_id: Uuid,
+    platform_type: PlatformType,
+    id_on_platform: Uuid,
+    name_on_platform: String,
+}
+
 /// Represents the different platforms that it is possible to play Siege on.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

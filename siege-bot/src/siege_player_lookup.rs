@@ -74,7 +74,9 @@ mod test {
         let mut lookup = PlayerLookup::default();
 
         // Act - add
-        lookup.insert(&discord_id, siege_id).expect("should be able to persist");
+        lookup
+            .insert(&discord_id, siege_id)
+            .expect("should be able to persist");
 
         // Act
         let retrieved_siege_id = *lookup.get(&discord_id).unwrap();
