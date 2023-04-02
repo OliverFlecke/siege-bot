@@ -28,6 +28,9 @@ jobs:
           command: generate-lockfile
       - name: cargo test
         run: cargo test --locked --all-features --all-targets
+        env:
+          UBISOFT_EMAIL: ${{ secrets.UBISOFT_EMAIL }}
+          UBISOFT_PASSWORD: ${{ secrets.UBISOFT_PASSWORD }}
 
   # coverage:
   #   runs-on: ubuntu-latest
