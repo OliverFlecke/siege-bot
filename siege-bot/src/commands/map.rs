@@ -135,7 +135,7 @@ impl MapCommand {
                     use strum::IntoEnumIterator;
 
                     Map::iter()
-                        .map(|map| map.to_string().replace(" ", ""))
+                        .map(|map| map.to_string().replace(' ', ""))
                         .filter(|map| map.starts_with(value))
                         .take(25)
                         .for_each(|map| {
