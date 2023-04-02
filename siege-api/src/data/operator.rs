@@ -1,7 +1,24 @@
+use derive_getters::Getters;
+
 use crate::{
     game_models::{Health, Role, Season, Side, Speed},
-    operator::{Operator, OperatorDetails},
+    operator::Operator,
 };
+
+#[derive(Debug, Getters)]
+pub struct OperatorDetails {
+    realname: String,
+    birthplace: String,
+    age: u8,
+    date_of_birth: String, // TODO: chrono::NaiveDate,
+    season_introduced: Season,
+    health: Health,
+    speed: Speed,
+    unit: String,
+    country_code: String,
+    roles: Vec<Role>,
+    side: Side,
+}
 
 pub fn get_operator_details(operator: Operator) -> OperatorDetails {
     match operator {

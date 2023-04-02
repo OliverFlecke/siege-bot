@@ -117,6 +117,11 @@ impl EventHandler for Handler {
                             .await
                             .unwrap();
                     }
+                    "map" => {
+                        MapCommand::handle_autocomplete(&ctx, &autocomplete)
+                            .await
+                            .unwrap();
+                    }
                     name => tracing::warn!("Autocomplete for {name} not handled"),
                 }
             }

@@ -26,17 +26,12 @@ impl PlayerLookup {
         let map = match read_to_string(PATH) {
             Ok(content) => serde_json::from_str(content.as_str())?,
             Err(err) => {
-                println!("Failed to read players: {err:?}");
+                tracing::warn!("Failed to read players. Creating default. Error: {err:?}");
                 HashMap::default()
             }
         };
 
         Ok(Self(map))
-
-        // lookup.insert(
-        //     UserId::from(394273324236144641),
-        //     Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid"),
-        // );
     }
 
     /// Get the Ubisoft ID for a Siege player from their Discord ID.

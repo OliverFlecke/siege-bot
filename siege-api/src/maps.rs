@@ -1,11 +1,15 @@
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, strum::EnumString)]
+#[derive(
+    Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, EnumString, EnumIter, Display,
+)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Map {
     #[serde(rename = "NIGHTHAVEN LABS")]
     NighthavenLabs,
-    Stadium,
+    #[serde(rename = "STADIUM BRAVO")]
+    StadiumBravo,
     #[serde(rename = "CLOSE QUARTER")]
     CloseQuarter,
     #[serde(rename = "EMERALD PLAINS")]
@@ -16,7 +20,8 @@ pub enum Map {
     Border,
     #[serde(rename = "CHALET V2")]
     Chalet,
-    Clubhouse,
+    #[serde(rename = "CLUB HOUSE")]
+    ClubHouse,
     Coastline,
     Consulate,
     #[serde(rename = "FAVELA V2")]
@@ -45,16 +50,16 @@ pub enum Map {
 }
 
 impl Map {
-    pub fn thumbnail(&self) -> &str {
+    pub fn image(&self) -> &str {
         match self {
             Self::NighthavenLabs => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/57i2PyuzpgVFzOvLUSAItO/636e57b198377a5a5d1d35492b52b808/Nighthaven_labs_screen.jpg",
-            Self::Stadium => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/4sQkH6y0h79oYEHuWHGAv/0103ee95bd83c8e222b32f7784e323da/r6s_maps_stadium.jpg",
+            Self::StadiumBravo => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/4sQkH6y0h79oYEHuWHGAv/0103ee95bd83c8e222b32f7784e323da/r6s_maps_stadium.jpg",
             Self::CloseQuarter => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/6u3cuepKWT8IFdaGznfc3k/d470334bddf5d6313c15879cde524615/r6s_maps_closequarters.jpg",
             Self::EmeraldPlains => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/1IGW5GG24TGEv3q8bRc9aJ/a73e0dc1fd385b4afd32cd3a2592a294/r6s_maps_emeraldplains__1_.jpg",
             Self::Bank => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/6ilgtuzucX7hEu2MvjhRtp/0bb6e106d78625ea218a572fbb7a5157/r6-maps-bank.jpg",
             Self::Border => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/4hqsrL3cokFqedkfjiEaGf/c73f6714b535263a18e4de2ca2405dd1/r6-maps-border__1_.jpg",
             Self::Chalet => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/Km3ZJUM7ZMVbGsi6gad5Y/c48162371342d9f15386c77a3766315b/r6-maps-chalet.jpg",
-            Self::Clubhouse => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/Km3ZJUM7ZMVbGsi6gad5Y/c48162371342d9f15386c77a3766315b/r6-maps-chalet.jpg",
+            Self::ClubHouse => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/Km3ZJUM7ZMVbGsi6gad5Y/c48162371342d9f15386c77a3766315b/r6-maps-chalet.jpg",
             Self::Coastline => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/5GfAQ3pXCJnDqiqaDH3Zic/db1722cd699bb864ee8f7b0db951b0c3/r6-maps-coastline.jpg",
             Self::Consulate => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/6PR2sBla9E6TNurVUfJ0mc/860cab16eb1d4cd27ea356a1c3fe9591/r6-maps-consulate.jpg",
             Self::Favela => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/6PR2sBla9E6TNurVUfJ0mc/860cab16eb1d4cd27ea356a1c3fe9591/r6-maps-consulate.jpg",
@@ -72,5 +77,25 @@ impl Map {
             Self::Villa => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/Io6dxNeHbCbJoF9WLJf9s/ebf89b009affba37df84dcf1934c74e0/r6-maps-villa.jpg",
             Self::Yacht => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/smDP6lSSaB6Daa7bLZxHZ/d6cc60d76e553e91503a474ff0bc148b/r6-maps-yacht.jpg",
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn parse() {
+        assert_eq!("Favela".parse::<Map>().unwrap(), Map::Favela);
+        assert_eq!(
+            "NighthavenLabs".parse::<Map>().unwrap(),
+            Map::NighthavenLabs
+        );
+    }
+
+    #[test]
+    fn display() {
+        assert_eq!(Map::Favela.to_string(), "Favela");
+        assert_eq!(Map::NighthavenLabs.to_string(), "NighthavenLabs");
     }
 }

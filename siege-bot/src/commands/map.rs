@@ -5,10 +5,11 @@ use serenity::{
         command::CommandOptionType,
         interaction::{
             application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+            autocomplete::AutocompleteInteraction,
             InteractionResponseType,
         },
     },
-    prelude,
+    prelude::{self, Context},
     utils::Color,
 };
 use siege_api::maps::Map;
@@ -100,7 +101,7 @@ impl CommandHandler for MapCommand {
                     .interaction_response_data(|msg| {
                         msg.embed(|embed| {
                             embed
-                                .thumbnail(map.name().thumbnail())
+                                .thumbnail(map.name().image())
                                 .title(format!("Map statistics for {:?}", map.name()))
                                 .color(Color::GOLD)
                                 .format(map.statistics())
@@ -109,6 +110,43 @@ impl CommandHandler for MapCommand {
             })
             .await
             .map_err(CommandError::SerenityError)?;
+
+        Ok(())
+    }
+}
+
+impl MapCommand {
+    /// Handle auto complete for map names.
+    pub async fn handle_autocomplete(
+        ctx: &Context,
+        interaction: &AutocompleteInteraction,
+    ) -> Result<(), CommandError> {
+        if let Some(value) = interaction
+            .data
+            .options
+            .iter()
+            .find(|option| option.name == NAME)
+            .and_then(|x| x.value.to_owned())
+        {
+            let value = value.as_str().expect("this should always be a string");
+
+            interaction
+                .create_autocomplete_response(&ctx.http, |response| {
+                    use strum::IntoEnumIterator;
+
+                    Map::iter()
+                        .map(|map| map.to_string().replace(" ", ""))
+                        .filter(|map| map.starts_with(value))
+                        .take(25)
+                        .for_each(|map| {
+                            response.add_string_choice(map.as_str(), map.as_str());
+                        });
+
+                    response
+                })
+                .await
+                .map_err(CommandError::SerenityError)?;
+        }
 
         Ok(())
     }

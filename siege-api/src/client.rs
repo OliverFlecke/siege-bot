@@ -173,10 +173,10 @@ impl Client {
             .await
             .map_err(|_| ConnectError::ConnectionError)?;
 
-        response
-            .json::<StatisticResponse>()
-            .await
-            .map_err(|_| ConnectError::UnexpectedResponse)
+        response.json::<StatisticResponse>().await.map_err(|err| {
+            println!("Error: {err:?}");
+            ConnectError::UnexpectedResponse
+        })
     }
 
     pub async fn get_seasonal_summaries(

@@ -1,12 +1,7 @@
-mod data;
-
-use derive_getters::Getters;
 use serde::Deserialize;
 use strum::{Display, EnumIter, EnumString};
 
-use crate::game_models::{Health, Role, Season, Side, Speed};
-
-pub use data::get_operator_details;
+pub use crate::data::operator::get_operator_details;
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, EnumString, Display, EnumIter)]
 pub enum Operator {
@@ -91,21 +86,6 @@ impl Operator {
             self.to_string().to_lowercase()
         )
     }
-}
-
-#[derive(Debug, Getters)]
-pub struct OperatorDetails {
-    realname: String,
-    birthplace: String,
-    age: u8,
-    date_of_birth: String, // TODO: chrono::NaiveDate,
-    season_introduced: Season,
-    health: Health,
-    speed: Speed,
-    unit: String,
-    country_code: String,
-    roles: Vec<Role>,
-    side: Side,
 }
 
 #[cfg(test)]
