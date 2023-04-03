@@ -10,11 +10,10 @@ use serenity::{
     prelude::Context,
     utils::Color,
 };
-use uuid::Uuid;
 
 use crate::{commands::CommandError, SiegeApi};
 
-use super::{get_user_from_command_or_default, CommandHandler};
+use super::{get_user_from_command_or_default, CommandHandler, lookup_siege_player};
 
 pub struct StatisticsCommand;
 
@@ -37,15 +36,13 @@ impl CommandHandler for StatisticsCommand {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<(), super::CommandError> {
-        let user = get_user_from_command_or_default(command);
-
         let data = ctx.data.read().await;
         let siege_client = data
             .get::<SiegeApi>()
             .expect("Siege client is always registered");
 
-        let player_id =
-            Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid");
+        let user = get_user_from_command_or_default(command);
+        let player_id = lookup_siege_player(ctx, command, user).await?;
         let profiles = siege_client.get_full_profiles(player_id).await.unwrap();
         let profile: siege_api::models::FullProfile = profiles[0];
 
