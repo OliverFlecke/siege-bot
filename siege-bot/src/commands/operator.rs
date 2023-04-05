@@ -21,7 +21,9 @@ use crate::{
     SiegeApi,
 };
 
-use super::{get_user_from_command_or_default, send_text_message, CommandHandler};
+use super::{
+    get_user_from_command_or_default, send_text_message, AddUserOptionToCommand, CommandHandler,
+};
 
 pub struct OperatorCommand;
 
@@ -39,13 +41,7 @@ impl CommandHandler for OperatorCommand {
                     .set_autocomplete(true)
                     .required(true)
             })
-            .create_option(|option| {
-                option
-                    .name("user")
-                    .description("The user to get statistics for. Defaults to the sending user")
-                    .kind(CommandOptionType::User)
-                    .required(false)
-            })
+            .add_user_option()
     }
 
     async fn run(

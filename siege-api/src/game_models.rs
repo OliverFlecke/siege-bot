@@ -49,7 +49,7 @@ pub enum Speed {
     Fast = 3,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "lowercase")]
 pub enum Side {
     Attacker,

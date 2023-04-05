@@ -21,8 +21,9 @@ use commands::CommandHandler;
 
 use crate::{
     commands::{
-        add_player::AddPlayerCommand, id::IdCommand, map::MapCommand, operator::OperatorCommand,
-        ping::PingCommand, statistics::StatisticsCommand, CommandError,
+        add_player::AddPlayerCommand, all_operators::AllOperatorCommand, id::IdCommand,
+        map::MapCommand, operator::OperatorCommand, ping::PingCommand,
+        statistics::StatisticsCommand, CommandError,
     },
     siege_player_lookup::{PlayerLookup, SiegePlayerLookup},
 };
@@ -39,6 +40,7 @@ async fn sync_commands(guild_id: GuildId, ctx: &Context) {
             .create_application_command(|command| MapCommand::register(command))
             .create_application_command(|command| OperatorCommand::register(command))
             .create_application_command(|command| AddPlayerCommand::register(command))
+            .create_application_command(|command| AllOperatorCommand::register(command))
     })
     .await
     {
@@ -101,6 +103,7 @@ impl EventHandler for Handler {
                     "operator" => OperatorCommand::run(&ctx, &command).await,
                     "map" => MapCommand::run(&ctx, &command).await,
                     "add" => AddPlayerCommand::run(&ctx, &command).await,
+                    "all_operators" => AllOperatorCommand::run(&ctx, &command).await,
                     _ => Err(CommandError::CommandNotFound),
                 };
 

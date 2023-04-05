@@ -1,3 +1,4 @@
+mod all_operators_format;
 pub mod statistics_format;
 
 pub trait FormatEmbedded<'a, T> {

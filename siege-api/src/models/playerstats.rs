@@ -1,6 +1,10 @@
 use std::str::FromStr;
 
-use crate::{game_models::Season, maps::Map, operator::Operator};
+use crate::{
+    game_models::{Season, Side},
+    maps::Map,
+    operator::Operator,
+};
 
 use super::*;
 
@@ -9,6 +13,15 @@ pub enum SideOrAll {
     All,
     Attacker,
     Defender,
+}
+
+impl From<Side> for SideOrAll {
+    fn from(value: Side) -> Self {
+        match value {
+            Side::Attacker => Self::Attacker,
+            Side::Defender => Self::Defender,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Getters)]

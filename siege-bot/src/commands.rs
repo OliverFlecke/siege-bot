@@ -2,9 +2,12 @@ use async_trait::async_trait;
 use serenity::{
     builder::CreateApplicationCommand,
     model::{
-        prelude::interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-            InteractionResponseType,
+        prelude::{
+            command::CommandOptionType,
+            interaction::{
+                application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+                InteractionResponseType,
+            },
         },
         user::User,
     },
@@ -14,6 +17,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 pub mod add_player;
+pub mod all_operators;
 pub mod id;
 pub mod map;
 pub mod operator;
@@ -99,6 +103,58 @@ async fn lookup_siege_player(
             )
             .await?;
             Err(CommandError::SiegePlayerNotFound)
+        }
+    }
+}
+
+// TODO: Should these traits/functions be moved to a utils module?
+
+trait AddUserOptionToCommand {
+    fn add_user_option(&mut self) -> &mut Self;
+}
+
+impl AddUserOptionToCommand for CreateApplicationCommand {
+    fn add_user_option(&mut self) -> &mut CreateApplicationCommand {
+        self.create_option(|option| {
+            option
+                .name("user")
+                .description("The user to get statistics for. Defaults to the sending user")
+                .kind(CommandOptionType::User)
+                .required(false)
+        })
+    }
+}
+
+mod utils {
+    use std::str::FromStr;
+
+    use serenity::model::prelude::interaction::application_command::{
+        ApplicationCommandInteraction, CommandDataOptionValue,
+    };
+
+    pub trait ExtractEnumOption {
+        fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
+        where
+            T: FromStr;
+    }
+
+    impl ExtractEnumOption for &ApplicationCommandInteraction {
+        fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
+        where
+            T: FromStr,
+        {
+            self.data
+                .options
+                .iter()
+                .find(|x| x.name == option_name)
+                .and_then(|x| x.resolved.as_ref())
+                .and_then(|x| {
+                    if let CommandDataOptionValue::String(value) = x {
+                        value.parse::<T>().ok()
+                    } else {
+                        None
+                    }
+                })
         }
     }
 }

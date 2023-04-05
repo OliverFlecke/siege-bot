@@ -21,7 +21,7 @@ use crate::{
     SiegeApi,
 };
 
-use super::{CommandError, CommandHandler};
+use super::{AddUserOptionToCommand, CommandError, CommandHandler};
 
 pub struct MapCommand;
 
@@ -39,13 +39,7 @@ impl CommandHandler for MapCommand {
                     .set_autocomplete(true)
                     .required(true)
             })
-            .create_option(|option| {
-                option
-                    .name("user")
-                    .description("The user to get statistics for. Defaults to the sending user")
-                    .kind(CommandOptionType::User)
-                    .required(false)
-            })
+            .add_user_option()
     }
 
     async fn run(

@@ -1,11 +1,8 @@
 use async_trait::async_trait;
 use serenity::{
     builder::CreateApplicationCommand,
-    model::prelude::{
-        command::CommandOptionType,
-        interaction::{
-            application_command::ApplicationCommandInteraction, InteractionResponseType,
-        },
+    model::prelude::interaction::{
+        application_command::ApplicationCommandInteraction, InteractionResponseType,
     },
     prelude::Context,
     utils::Color,
@@ -13,7 +10,9 @@ use serenity::{
 
 use crate::{commands::CommandError, SiegeApi};
 
-use super::{get_user_from_command_or_default, CommandHandler, lookup_siege_player};
+use super::{
+    get_user_from_command_or_default, lookup_siege_player, AddUserOptionToCommand, CommandHandler,
+};
 
 pub struct StatisticsCommand;
 
@@ -23,13 +22,7 @@ impl CommandHandler for StatisticsCommand {
         command
             .name("statistics")
             .description("Get the statistics for a Siege player")
-            .create_option(|option| {
-                option
-                    .name("user")
-                    .description("The user to get statistics for. Defaults to the sending user")
-                    .kind(CommandOptionType::User)
-                    .required(false)
-            })
+            .add_user_option()
     }
 
     async fn run(
