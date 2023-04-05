@@ -9,25 +9,25 @@ impl FormatEmbedded<'_, Vec<&MapStatistics>> for CreateEmbed {
 
         let names = maps
             .iter()
-            .map(|op| format!("`{}`", op.name()))
+            .map(|x| format!("`{}`", x.name()))
             .fold(String::new(), |acc, next| acc + &next + "\n");
         let kds = maps
             .iter()
-            .map(|op| op.statistics().kill_death_ratio())
+            .map(|x| x.statistics().kill_death_ratio())
             .map(|kd| format!("`{kd:.2}`"))
             .fold(String::new(), |acc, next| acc + &next + "\n");
         let rounds = maps
             .iter()
-            .map(|op| {
+            .map(|x| {
                 format!(
                     "`{:.2} %` (of `{}`)",
-                    op.statistics().rounds_win_rate(),
-                    op.statistics().rounds_played()
+                    x.statistics().rounds_win_rate(),
+                    x.statistics().rounds_played()
                 )
             })
             .fold(String::new(), |acc, next| acc + &next + "\n");
 
-        self.field("Operator", names, true);
+        self.field("Map", names, true);
         self.field("K/D", kds, true);
         self.field("Rounds", rounds, true);
 
