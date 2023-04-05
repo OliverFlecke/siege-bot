@@ -157,7 +157,7 @@ impl CommandHandler for AllMapsCommand {
                         msg.embed(|embed| {
                             embed
                                 .thumbnail(user.avatar_url().unwrap_or_default())
-                                .title(format!("{} operator statistics for {}", side, user.name))
+                                .title(format!("{} map statistics for {}", side, user.name))
                                 .color(Color::TEAL)
                                 .format(&maps)
                         })
