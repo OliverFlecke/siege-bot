@@ -347,6 +347,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "Missing credentials in CI"]
     async fn search_player() {
         let client = create_client_from_environment().await;
 
@@ -358,6 +359,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "Missing credentials in CI"]
     async fn operators_statistics() {
         let client = create_client_from_environment().await;
 
@@ -366,6 +368,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "Missing credentials in CI"]
     async fn maps_statistics() {
         let client = create_client_from_environment().await;
 
@@ -393,6 +396,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "Missing credentials in CI"]
     async fn full_player_profiles() {
         let client = create_client_from_environment().await;
 
@@ -400,6 +404,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "Missing credentials in CI"]
     async fn playtime() {
         let player_id = mock_player_id();
         let client = create_client_from_environment().await;

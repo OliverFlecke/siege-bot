@@ -116,6 +116,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "Missing credentials in CI"]
     async fn connect() {
         let auth = Auth::from_environment();
 
