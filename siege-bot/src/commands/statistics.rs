@@ -29,14 +29,19 @@ impl CommandHandler for StatisticsCommand {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<(), super::CommandError> {
-        let data = ctx.data.read().await;
-        let siege_client = data
-            .get::<SiegeApi>()
-            .expect("Siege client is always registered");
-
         let user = get_user_from_command_or_default(command);
         let player_id = lookup_siege_player(ctx, command, user).await?;
-        let profiles = siege_client.get_full_profiles(player_id).await.unwrap();
+
+        tracing::info!("Getting statistics for {}", user.name);
+
+        let profiles = {
+            let data = ctx.data.read().await;
+            let siege_client = data
+                .get::<SiegeApi>()
+                .expect("Siege client is always registered");
+            siege_client.get_full_profiles(player_id).await.unwrap()
+        };
+
         let profile: siege_api::models::FullProfile = profiles[0];
 
         let season = profile.season_statistics();

@@ -4,9 +4,8 @@ use serenity::{
     model::prelude::{
         command::CommandOptionType,
         interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-            autocomplete::AutocompleteInteraction,
-            InteractionResponseType,
+            application_command::ApplicationCommandInteraction,
+            autocomplete::AutocompleteInteraction, InteractionResponseType,
         },
     },
     prelude::Context,
@@ -15,7 +14,7 @@ use serenity::{
 use siege_api::operator::Operator;
 
 use crate::{
-    commands::{lookup_siege_player, CommandError},
+    commands::{lookup_siege_player, utils::ExtractEnumOption, CommandError},
     constants::NAME,
     formatting::FormatEmbedded,
     SiegeApi,
@@ -48,25 +47,16 @@ impl CommandHandler for OperatorCommand {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<(), CommandError> {
-        let operator = if let CommandDataOptionValue::String(value) = command
-            .data
-            .options
-            .iter()
-            .find(|x| x.name == NAME)
-            .expect("required argument")
-            .resolved
-            .as_ref()
-            .expect("required argument")
-        {
-            value.parse::<Operator>().unwrap()
-        } else {
-            unreachable!()
-        };
-
-        tracing::debug!("Getting statistics for operator '{operator}'");
-
+        let operator = command
+            .extract_enum_option(NAME)
+            .expect("required argument");
         let user = get_user_from_command_or_default(command);
         let player_id = lookup_siege_player(ctx, command, user).await?;
+
+        tracing::info!(
+            "Getting statistics for operator '{operator}' for {}",
+            user.name
+        );
 
         let response = {
             let data = ctx.data.read().await;

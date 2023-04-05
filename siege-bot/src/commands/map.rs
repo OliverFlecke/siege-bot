@@ -4,9 +4,8 @@ use serenity::{
     model::prelude::{
         command::CommandOptionType,
         interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-            autocomplete::AutocompleteInteraction,
-            InteractionResponseType,
+            application_command::ApplicationCommandInteraction,
+            autocomplete::AutocompleteInteraction, InteractionResponseType,
         },
     },
     prelude::{self, Context},
@@ -15,7 +14,10 @@ use serenity::{
 use siege_api::maps::Map;
 
 use crate::{
-    commands::{get_user_from_command_or_default, lookup_siege_player, send_text_message},
+    commands::{
+        get_user_from_command_or_default, lookup_siege_player, send_text_message,
+        utils::ExtractEnumOption,
+    },
     constants::NAME,
     formatting::FormatEmbedded,
     SiegeApi,
@@ -46,25 +48,14 @@ impl CommandHandler for MapCommand {
         ctx: &prelude::Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<(), CommandError> {
-        let map = if let CommandDataOptionValue::String(value) = command
-            .data
-            .options
-            .iter()
-            .find(|x| x.name == NAME)
-            .expect("required argument")
-            .resolved
-            .as_ref()
-            .expect("required argument")
-        {
-            value.parse::<Map>().expect("should always be valid")
-        } else {
-            unreachable!()
-        };
-
-        tracing::debug!("Getting statistics for map '{map:?}'");
+        let map = command
+            .extract_enum_option(NAME)
+            .expect("required argument");
 
         let user = get_user_from_command_or_default(command);
         let player_id = lookup_siege_player(ctx, command, user).await?;
+
+        tracing::info!("Getting statistics for map '{map:?}' for {}", user.name);
 
         let response = {
             let data = ctx.data.read().await;
