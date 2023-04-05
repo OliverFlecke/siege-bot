@@ -8,7 +8,7 @@ use crate::{
 
 use super::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, strum::Display, strum::EnumString, strum::EnumIter)]
 pub enum SideOrAll {
     All,
     Attacker,
@@ -40,7 +40,7 @@ pub struct StatisticResponse {
 }
 
 impl StatisticResponse {
-    pub fn get_operators(&self, role: SideOrAll) -> Option<&Vec<GeneralStatistics>> {
+    pub fn get_statistics_from_side(&self, role: SideOrAll) -> Option<&Vec<GeneralStatistics>> {
         let roles = match self.platforms.pc.game_modes.all.as_ref() {
             Some(r) => r,
             None => return None,
@@ -55,7 +55,7 @@ impl StatisticResponse {
 
     /// Get an operator with a specific name.
     pub fn get_operator(&self, operator: Operator) -> Option<&OperatorStatistics> {
-        self.get_operators(SideOrAll::All).and_then(|x| {
+        self.get_statistics_from_side(SideOrAll::All).and_then(|x| {
             x.iter()
                 .filter_map(|x| match x {
                     GeneralStatistics::Operator(op) => Some(op),
@@ -67,15 +67,16 @@ impl StatisticResponse {
 
     /// Get statistics for a given map.
     pub fn get_map(&self, map_name: Map) -> Option<&MapStatistics> {
-        self.get_operators(SideOrAll::All).and_then(|stats| {
-            stats
-                .iter()
-                .filter_map(|x| match x {
-                    GeneralStatistics::Maps(map) => Some(map),
-                    _ => None,
-                })
-                .find(|map| *map.name() == map_name)
-        })
+        self.get_statistics_from_side(SideOrAll::All)
+            .and_then(|stats| {
+                stats
+                    .iter()
+                    .filter_map(|x| match x {
+                        GeneralStatistics::Maps(map) => Some(map),
+                        _ => None,
+                    })
+                    .find(|map| *map.name() == map_name)
+            })
     }
 }
 

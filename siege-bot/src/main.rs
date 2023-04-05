@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-use commands::CommandHandler;
+use commands::{all_maps::AllMapsCommand, CommandHandler};
 
 use crate::{
     commands::{
@@ -41,29 +41,13 @@ async fn sync_commands(guild_id: GuildId, ctx: &Context) {
             .create_application_command(|command| OperatorCommand::register(command))
             .create_application_command(|command| AddPlayerCommand::register(command))
             .create_application_command(|command| AllOperatorCommand::register(command))
+            .create_application_command(|command| AllMapsCommand::register(command))
     })
     .await
     {
         Ok(commands) => tracing::trace!("Create guild slash commands: {commands:#?}"),
         Err(err) => tracing::error!("Failed to create guild commands: {err:#?}"),
     };
-
-    // match serenity::model::application::command::Command::set_global_application_commands(
-    //     &ctx.http,
-    //     |commands| {
-    //         commands
-    //             .create_application_command(|command| PingCommand::register(command))
-    //             .create_application_command(|command| IdCommand::register(command))
-    //             .create_application_command(|command| StatisticsCommand::register(command))
-    //             .create_application_command(|command| OperatorCommand::register(command))
-    //             .create_application_command(|command| MapCommand::register(command))
-    //     },
-    // )
-    // .await
-    // {
-    //     Ok(commands) => tracing::trace!("Created global slash commands: {commands:#?}"),
-    //     Err(err) => tracing::error!("Failed to create commands: {err:#?}"),
-    // };
 }
 
 #[async_trait]
@@ -104,6 +88,7 @@ impl EventHandler for Handler {
                     "map" => MapCommand::run(&ctx, &command).await,
                     "add" => AddPlayerCommand::run(&ctx, &command).await,
                     "all_operators" => AllOperatorCommand::run(&ctx, &command).await,
+                    "all_maps" => AllMapsCommand::run(&ctx, &command).await,
                     _ => Err(CommandError::CommandNotFound),
                 };
 

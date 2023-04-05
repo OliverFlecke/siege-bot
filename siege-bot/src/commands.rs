@@ -23,6 +23,7 @@ pub mod map;
 pub mod operator;
 pub mod ping;
 pub mod statistics;
+pub mod all_maps;
 
 #[async_trait]
 pub trait CommandHandler {

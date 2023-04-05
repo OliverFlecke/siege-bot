@@ -11,7 +11,8 @@ use serenity::{
     prelude::Context,
     utils::Color,
 };
-use siege_api::{game_models::Side, models::GeneralStatistics};
+use siege_api::models::{GeneralStatistics, SideOrAll};
+use strum::IntoEnumIterator;
 
 use crate::{commands::utils::ExtractEnumOption, formatting::FormatEmbedded, SiegeApi};
 
@@ -31,22 +32,26 @@ static SIDE: &str = "side";
 static SORTING: &str = "sorting";
 static MINIMUM_ROUNDS: &str = "minimum_rounds";
 
-pub struct AllOperatorCommand;
+pub struct AllMapsCommand;
 
 #[async_trait]
-impl CommandHandler for AllOperatorCommand {
+impl CommandHandler for AllMapsCommand {
     fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
         command
-            .name("all_operators")
-            .description("List statistics for all operators for a given side")
+            .name("all_maps")
+            .description("List statistics for all maps for a given side or overall")
             .create_option(|option| {
                 option
                     .name(SIDE)
-                    .description("Side to show operators for")
+                    .description("Side to show maps for")
                     .kind(CommandOptionType::String)
-                    .add_string_choice(Side::Attacker, Side::Attacker)
-                    .add_string_choice(Side::Defender, Side::Defender)
-                    .required(true)
+                    .required(true);
+
+                SideOrAll::iter().for_each(|side| {
+                    option.add_string_choice(side, side);
+                });
+
+                option
             })
             .create_option(|option| {
                 option
@@ -55,7 +60,6 @@ impl CommandHandler for AllOperatorCommand {
                     .kind(CommandOptionType::String)
                     .required(false);
 
-                use strum::IntoEnumIterator;
                 Sorting::iter().for_each(|sorting| {
                     option.add_string_choice(sorting, sorting);
                 });
@@ -77,7 +81,7 @@ impl CommandHandler for AllOperatorCommand {
         command: &ApplicationCommandInteraction,
     ) -> Result<(), CommandError> {
         let side = command
-            .extract_enum_option::<Side>(SIDE)
+            .extract_enum_option::<SideOrAll>(SIDE)
             .expect("required argument");
         let sorting = command.extract_enum_option(SORTING).unwrap_or(Sorting::Kd);
         let minimum_rounds = command
@@ -99,30 +103,31 @@ impl CommandHandler for AllOperatorCommand {
 
         let player_id = lookup_siege_player(ctx, command, user).await?;
 
-        let operator_response = {
+        let response = {
             let data = ctx.data.read().await;
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
-            siege_client.get_operators(player_id).await.unwrap()
+            siege_client.get_maps(player_id).await.unwrap()
         };
 
-        let mut operators = operator_response
-            .get_statistics_from_side(side.into())
-            .map(|os| {
-                os.iter()
-                    .filter_map(|op| match op {
-                        GeneralStatistics::Operator(op) => Some(op),
+        let mut maps = response
+            .get_statistics_from_side(side)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|x| match x {
+                        GeneralStatistics::Maps(map) => Some(map),
                         _ => None,
                     })
-                    .filter(|op| *op.statistics().rounds_played() as i64 >= minimum_rounds)
+                    .filter(|x| *x.statistics().rounds_played() as i64 >= minimum_rounds)
                     .collect::<Vec<_>>()
             })
             .unwrap();
 
         match sorting {
             Sorting::Kd => {
-                operators.sort_by(|a, b| {
+                maps.sort_by(|a, b| {
                     b.statistics()
                         .kill_death_ratio()
                         .partial_cmp(a.statistics().kill_death_ratio())
@@ -130,14 +135,14 @@ impl CommandHandler for AllOperatorCommand {
                 });
             }
             Sorting::WinRate => {
-                operators.sort_by(|a, b| {
+                maps.sort_by(|a, b| {
                     b.statistics()
                         .rounds_win_rate()
                         .partial_cmp(&a.statistics().rounds_win_rate())
                         .expect("should always be valid")
                 });
             }
-            Sorting::RoundsPlayed => operators.sort_by(|a, b| {
+            Sorting::RoundsPlayed => maps.sort_by(|a, b| {
                 b.statistics()
                     .rounds_played()
                     .cmp(a.statistics().rounds_played())
@@ -154,7 +159,7 @@ impl CommandHandler for AllOperatorCommand {
                                 .thumbnail(user.avatar_url().unwrap_or_default())
                                 .title(format!("{} operator statistics for {}", side, user.name))
                                 .color(Color::TEAL)
-                                .format(&operators)
+                                .format(&maps)
                         })
                     })
             })
