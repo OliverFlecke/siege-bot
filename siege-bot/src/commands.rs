@@ -62,19 +62,17 @@ async fn send_text_message(
 
 /// Extract the user argument from the command, or if not provide, return the user who invoked the command.
 fn get_user_from_command_or_default(command: &ApplicationCommandInteraction) -> &User {
-    match command
+    command
         .data
         .options
         .iter()
         .filter(|x| x.name == "user")
         .last()
-    {
-        Some(opt) => match opt.resolved.as_ref() {
-            Some(CommandDataOptionValue::User(user, _)) => user,
-            _ => &command.user,
-        },
-        _ => &command.user,
-    }
+        .and_then(|x| match x.resolved.as_ref() {
+            Some(CommandDataOptionValue::User(user, _)) => Some(user),
+            _ => None,
+        })
+        .unwrap_or(&command.user)
 }
 
 /// Retreive the Siege Id for a Discord user. If it is not found, an error is sent back through the command
