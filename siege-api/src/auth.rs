@@ -31,7 +31,10 @@ impl Auth {
             .header("Authorization", format!("Basic {}", self.get_token()))
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(|err| {
+                println!("{err:?}");
+                ConnectError::ConnectionError
+            })?;
 
         if response.status().is_success() {
             Ok(response

@@ -23,7 +23,8 @@ pub struct PlayerLookup(HashMap<UserId, Uuid>);
 
 impl PlayerLookup {
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        let map = match read_to_string(PATH) {
+        let map = match read_to_string(PATH).or_else(|_| read_to_string(format!("/config/{PATH}")))
+        {
             Ok(content) => serde_json::from_str(content.as_str())?,
             Err(err) => {
                 tracing::warn!("Failed to read players. Creating default. Error: {err:?}");

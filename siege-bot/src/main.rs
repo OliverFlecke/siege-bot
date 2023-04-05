@@ -131,7 +131,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(EnvFilter::from_default_env().add_directive("siege_bot=debug".parse()?))
         .init();
 
-    let token = std::env::var("DISCORD_TOKEN").expect("token");
+    let token =
+        std::env::var("DISCORD_TOKEN").expect("environment variable `DISCORD_TOKEN` should be set");
     let intents = GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
