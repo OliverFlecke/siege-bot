@@ -17,13 +17,13 @@ use thiserror::Error;
 use uuid::Uuid;
 
 pub mod add_player;
+pub mod all_maps;
 pub mod all_operators;
 pub mod id;
 pub mod map;
 pub mod operator;
 pub mod ping;
 pub mod statistics;
-pub mod all_maps;
 
 #[async_trait]
 pub trait CommandHandler {

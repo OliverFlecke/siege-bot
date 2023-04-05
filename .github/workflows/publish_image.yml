@@ -1,0 +1,49 @@
+name: Build and publish image
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  CONTAINER_REGISTRY: ghcr.io
+
+jobs:
+  build-and-publish-image:
+    name: Build and publish image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set lower case owner name
+        run: echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
+        env:
+          OWNER: '${{ github.repository_owner }}'
+
+      - uses: actions/checkout@v3
+
+      - name: Login to container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.CONTAINER_REGISTRY }}/${{ env.OWNER_LC }}
+
+      - name: Build image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: siege-bot
+          tags: latest ${{ github.sha }}
+          platforms: linux/amd64
+          containerfiles: Dockerfile
+          layers: true
+
+      - name: Push image
+        id: push-image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ${{ env.CONTAINER_REGISTRY }}/${{ env.OWNER_LC }}
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+
+      - name: Print image url
+        run: echo "Image pushed to ${{ steps.push-image.outputs.registry-paths }}"
