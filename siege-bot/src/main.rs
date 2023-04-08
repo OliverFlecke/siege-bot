@@ -128,7 +128,11 @@ impl TypeMapKey for SiegeApi {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(EnvFilter::from_default_env().add_directive("siege_bot=debug".parse()?))
+        .with(
+            EnvFilter::from_default_env()
+                .add_directive("siege_bot=debug".parse()?)
+                .add_directive("siege_api=info".parse()?),
+        )
         .init();
 
     let token =
@@ -143,6 +147,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let shard_manager = client.shard_manager.clone();
 
+    // These extra scopes are added to drop the `GuardLock` on `data` as soon
+    // as possible. This not strictly necessary here, but in general best
+    // pratice to hold the locks as shortly as possible.
     {
         let siege_client: siege_api::client::Client =
             Auth::from_environment().connect().await.unwrap().into();

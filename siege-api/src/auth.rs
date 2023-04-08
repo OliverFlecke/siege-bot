@@ -104,6 +104,13 @@ pub struct ConnectResponse {
     session_key: String, // Base64 encoded
 }
 
+impl ConnectResponse {
+    /// Check if the session is expired.
+    pub fn is_expired(&self) -> bool {
+        self.expiration < Utc::now()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

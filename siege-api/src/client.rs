@@ -1,9 +1,10 @@
 use chrono::{Months, NaiveDate, Utc};
 use reqwest::{RequestBuilder, Url};
 use serde::Deserialize;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::auth::{ConnectError, ConnectResponse};
+use crate::auth::{Auth, ConnectError, ConnectResponse};
 use crate::constants::{UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
 use crate::models::{
     FullProfile, PlatformFamily, PlatformType, PlayType, PlayerProfile, PlaytimeProfile,
@@ -12,14 +13,14 @@ use crate::models::{
 
 #[derive(Debug)]
 pub struct Client {
-    auth: ConnectResponse,
+    auth: RwLock<ConnectResponse>,
     client: reqwest::Client,
 }
 
 impl From<ConnectResponse> for Client {
     fn from(auth: ConnectResponse) -> Self {
         Self {
-            auth,
+            auth: RwLock::new(auth),
             client: reqwest::Client::new(),
         }
     }
@@ -47,14 +48,7 @@ impl Client {
         )
         .expect("url is valid");
 
-        let response = self
-            .client
-            .get(url)
-            .set_headers(&self.auth)
-            .send()
-            .await
-            .map_err(ConnectError::ConnectionError)?;
-
+        let response = self.get(url).await?;
         let parsed = response
             .json::<PlaytimeResponse>()
             .await
@@ -81,14 +75,7 @@ impl Client {
         )
         .expect("url is valid");
 
-        let response = self
-            .client
-            .get(url)
-            .set_headers(&self.auth)
-            .send()
-            .await
-            .map_err(ConnectError::ConnectionError)?;
-
+        let response = self.get(url).await?;
         // Helper structs to extract the unnecssary nesting from the API.
         #[derive(Deserialize)]
         struct Response {
@@ -108,7 +95,7 @@ impl Client {
         }
 
         let profile = response.json::<Response>().await.map_err(|err| {
-            println!("Err: {err:?}");
+            tracing::error!("Error: {err:?}");
             ConnectError::UnexpectedResponse
         })?;
 
@@ -119,7 +106,7 @@ impl Client {
             .collect::<Vec<_>>())
     }
 
-    pub async fn get_statistics(&self, player_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn get_statistics(&self, player_id: Uuid) -> Result<(), ConnectError> {
         let platform = PlatformType::Uplay;
         let statistics = vec!["operatorpvp_kills"];
 
@@ -139,23 +126,16 @@ impl Client {
         )
         .expect("is a valid url");
 
-        let response = self.client.get(url).set_headers(&self.auth).send().await?;
+        let response = self.get(url).await?;
 
-        println!("{}", response.text().await?);
+        println!("{}", response.text().await.unwrap());
         todo!()
     }
 
     /// Retreive statistics about operators for a given player.
     pub async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
         let url = create_summary_query(player_id, AggregationType::Operators);
-        let response = self
-            .client
-            .get(url)
-            .set_headers(&self.auth)
-            .send()
-            .await
-            .map_err(ConnectError::ConnectionError)?;
-
+        let response = self.get(url).await?;
         response
             .json::<StatisticResponse>()
             .await
@@ -165,16 +145,10 @@ impl Client {
     /// Get maps statistics for a given player.
     pub async fn get_maps(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
         let url = create_summary_query(player_id, AggregationType::Maps);
-        let response = self
-            .client
-            .get(url)
-            .set_headers(&self.auth)
-            .send()
-            .await
-            .map_err(ConnectError::ConnectionError)?;
+        let response = self.get(url).await?;
 
         response.json::<StatisticResponse>().await.map_err(|err| {
-            println!("Error: {err:?}");
+            tracing::error!("Error: {err:?}");
             ConnectError::UnexpectedResponse
         })
     }
@@ -198,14 +172,7 @@ impl Client {
         // }
         let url = create_summary_query(player_id, AggregationType::Summary);
 
-        let response = self
-            .client
-            .get(url)
-            .set_headers(&self.auth)
-            .send()
-            .await
-            .map_err(ConnectError::ConnectionError)?;
-
+        let response = self.get(url).await?;
         response
             .json::<StatisticResponse>()
             .await
@@ -229,20 +196,38 @@ impl Client {
         )
         .expect("should always be a valid url");
 
-        let response = self
-            .client
-            .get(url)
-            .set_headers(&self.auth)
-            .send()
-            .await
-            .map_err(ConnectError::ConnectionError)?;
-
+        let response = self.get(url).await?;
         let profile: Response = response
             .json()
             .await
             .map_err(|_| ConnectError::UnexpectedResponse)?;
 
         Ok(*profile.profiles[0].profile_id())
+    }
+
+    async fn get(&self, url: Url) -> Result<reqwest::Response, ConnectError> {
+        if self.auth.read().await.is_expired() {
+            self.refresh_auth().await?;
+        }
+
+        self.client
+            .get(url)
+            .set_headers(&*self.auth.read().await)
+            .send()
+            .await
+            .map_err(ConnectError::ConnectionError)
+    }
+
+    /// Refresh the authentication session to Ubisoft's API.
+    async fn refresh_auth(&self) -> Result<(), ConnectError> {
+        tracing::info!("Refreshing auth token for client");
+        // TODO: Would prefer not reading this from the environment again.
+        // They could be set in another way in the future.
+        let auth = Auth::from_environment().connect().await?;
+
+        *self.auth.write().await = auth;
+
+        Ok(())
     }
 }
 
