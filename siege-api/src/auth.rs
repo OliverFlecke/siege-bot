@@ -31,10 +31,7 @@ impl Auth {
             .header("Authorization", format!("Basic {}", self.get_token()))
             .send()
             .await
-            .map_err(|err| {
-                println!("{err:?}");
-                ConnectError::ConnectionError
-            })?;
+            .map_err(ConnectError::ConnectionError)?;
 
         if response.status().is_success() {
             Ok(response
@@ -70,11 +67,23 @@ impl Auth {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum ConnectError {
     InvalidPassword,
     UnexpectedResponse,
-    ConnectionError,
+    ConnectionError(reqwest::Error),
+}
+
+impl PartialEq for ConnectError {
+    fn eq(&self, other: &Self) -> bool {
+        use ConnectError::*;
+        match (self, other) {
+            (InvalidPassword, InvalidPassword)
+            | (UnexpectedResponse, UnexpectedResponse)
+            | (ConnectionError(_), ConnectionError(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Getters)]

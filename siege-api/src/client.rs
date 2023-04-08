@@ -53,7 +53,7 @@ impl Client {
             .set_headers(&self.auth)
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(ConnectError::ConnectionError)?;
 
         let parsed = response
             .json::<PlaytimeResponse>()
@@ -87,7 +87,7 @@ impl Client {
             .set_headers(&self.auth)
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(ConnectError::ConnectionError)?;
 
         // Helper structs to extract the unnecssary nesting from the API.
         #[derive(Deserialize)]
@@ -154,7 +154,7 @@ impl Client {
             .set_headers(&self.auth)
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(ConnectError::ConnectionError)?;
 
         response
             .json::<StatisticResponse>()
@@ -171,7 +171,7 @@ impl Client {
             .set_headers(&self.auth)
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(ConnectError::ConnectionError)?;
 
         response.json::<StatisticResponse>().await.map_err(|err| {
             println!("Error: {err:?}");
@@ -204,7 +204,7 @@ impl Client {
             .set_headers(&self.auth)
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(ConnectError::ConnectionError)?;
 
         response
             .json::<StatisticResponse>()
@@ -235,12 +235,12 @@ impl Client {
             .set_headers(&self.auth)
             .send()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(ConnectError::ConnectionError)?;
 
         let profile: Response = response
             .json()
             .await
-            .map_err(|_| ConnectError::ConnectionError)?;
+            .map_err(|_| ConnectError::UnexpectedResponse)?;
 
         Ok(*profile.profiles[0].profile_id())
     }
