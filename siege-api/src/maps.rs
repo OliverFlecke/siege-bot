@@ -82,6 +82,9 @@ impl Map {
 
 #[cfg(test)]
 mod test {
+    use reqwest::Url;
+    use strum::IntoEnumIterator;
+
     use super::*;
 
     #[test]
@@ -97,5 +100,12 @@ mod test {
     fn display() {
         assert_eq!(Map::Favela.to_string(), "Favela");
         assert_eq!(Map::NighthavenLabs.to_string(), "NighthavenLabs");
+    }
+
+    #[test]
+    fn image_is_valid() {
+        Map::iter().for_each(|x| {
+            assert!(Url::parse(x.image()).is_ok());
+        });
     }
 }

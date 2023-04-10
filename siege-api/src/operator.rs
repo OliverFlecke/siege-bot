@@ -90,6 +90,8 @@ impl Operator {
 
 #[cfg(test)]
 mod test {
+    use strum::IntoEnumIterator;
+
     use super::*;
 
     #[test]
@@ -97,5 +99,12 @@ mod test {
         assert_eq!("Nøkk".parse::<Operator>().unwrap(), Operator::Nøkk);
         assert_eq!("Jäger".parse::<Operator>().unwrap(), Operator::Jäger);
         assert_eq!("Aruni".parse::<Operator>().unwrap(), Operator::Aruni);
+    }
+
+    #[test]
+    fn validate_avatars() {
+        Operator::iter().for_each(|op| {
+            assert!(reqwest::Url::parse(op.avatar_url().as_str()).is_ok());
+        });
     }
 }
