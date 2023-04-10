@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use strum::{Display, EnumString};
 
-#[derive(Debug, Deserialize, EnumString, Display)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, EnumString, Display)]
 pub enum Season {
     Y8S1,
     Y7S4,
@@ -35,28 +35,28 @@ pub enum Season {
     Y0S0,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 pub enum Health {
     Low = 1,
     Medium = 2,
     High = 3,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 pub enum Speed {
     Slow = 1,
     Normal = 2,
     Fast = 3,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, strum::Display, strum::EnumString)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString)]
 #[serde(rename_all = "lowercase")]
 pub enum Side {
     Attacker,
     Defender,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 pub enum Role {
     Anchor,
     AntiHardBreach,

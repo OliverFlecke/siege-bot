@@ -976,3 +976,43 @@ pub fn get_operator_details(operator: Operator) -> OperatorDetails {
         },
     }
 }
+
+#[cfg(test)]
+mod test {
+    use strum::IntoEnumIterator;
+
+    use super::*;
+
+    #[test]
+    fn validate_operator_details() {
+        Operator::iter().for_each(|op| {
+            let _ = get_operator_details(op);
+        });
+    }
+
+    #[test]
+    fn validate_getters() {
+        let details = get_operator_details(Operator::Brava);
+
+        assert_eq!(*details.realname(), "Nayara Cardoso".to_string());
+        assert_eq!(*details.birthplace(), "Curitiba, Brazil".to_string());
+        assert_eq!(*details.age(), 40);
+        assert_eq!(*details.date_of_birth(), "January 10th".to_string());
+        assert_eq!(*details.season_introduced(), Season::Y8S1);
+        assert_eq!(*details.health(), Health::Low);
+        assert_eq!(*details.speed(), Speed::Fast);
+        assert_eq!(*details.unit(), "S.A.T".to_string());
+        assert_eq!(*details.country_code(), "BR".to_string());
+        assert_eq!(
+            *details.roles(),
+            vec![Role::IntelGatherer, Role::AntiGadget]
+        );
+        assert_eq!(*details.side(), Side::Attacker);
+    }
+
+    #[test]
+    fn check_debug() {
+        let details = get_operator_details(Operator::Brava);
+        println!("{details:?}");
+    }
+}
