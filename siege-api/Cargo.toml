@@ -2,6 +2,8 @@
 name = "siege-api"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.68"
+authors = ["Oliver Fleckenstein <oliverfl@live.dk>"]
 
 [dependencies]
 base64 = "0.21.0"
