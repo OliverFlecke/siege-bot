@@ -77,12 +77,12 @@ pub enum ConnectError {
 impl PartialEq for ConnectError {
     fn eq(&self, other: &Self) -> bool {
         use ConnectError::*;
-        match (self, other) {
+        matches!(
+            (self, other),
             (InvalidPassword, InvalidPassword)
-            | (UnexpectedResponse, UnexpectedResponse)
-            | (ConnectionError(_), ConnectionError(_)) => true,
-            _ => false,
-        }
+                | (UnexpectedResponse, UnexpectedResponse)
+                | (ConnectionError(_), ConnectionError(_))
+        )
     }
 }
 
