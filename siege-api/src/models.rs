@@ -23,7 +23,7 @@ pub struct PlayerProfile {
 }
 
 /// Represents the different platforms that it is possible to play Siege on.
-#[derive(Debug, Deserialize, Serialize, EnumIter)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, EnumIter)]
 #[serde(rename_all = "lowercase")]
 pub enum PlatformType {
     Uplay,

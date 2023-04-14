@@ -86,7 +86,7 @@ impl PartialEq for ConnectError {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Getters)]
+#[derive(Debug, Clone, Deserialize, Serialize, Getters)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectResponse {
     platform_type: PlatformType,

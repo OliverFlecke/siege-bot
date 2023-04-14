@@ -115,4 +115,17 @@ mod test {
 
         assert_eq!(siege_id, retrieved_siege_id);
     }
+
+    #[test]
+    fn debug() {
+        let lookup = PlayerLookup {
+            filename: "some name".to_string(),
+            users: HashMap::default(),
+        };
+
+        assert_eq!(
+            format!("{lookup:?}"),
+            "PlayerLookup { filename: \"some name\", users: {} }"
+        );
+    }
 }

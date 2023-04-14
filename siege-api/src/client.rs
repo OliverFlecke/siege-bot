@@ -263,9 +263,12 @@ mod test {
     use super::*;
 
     lazy_static! {
-        static ref CLIENT: AsyncOnce<Client> = AsyncOnce::new(async {
-            Into::<Client>::into(Auth::from_environment().connect().await.unwrap())
-        });
+        static ref CONNECTED_AUTH: AsyncOnce<ConnectResponse> =
+            AsyncOnce::new(async { Auth::from_environment().connect().await.unwrap() });
+    }
+
+    async fn get_client() -> Client {
+        Into::<Client>::into(CONNECTED_AUTH.get().await.clone())
     }
 
     fn mock_player_id() -> Uuid {
@@ -282,8 +285,7 @@ mod test {
 
     #[tokio::test]
     async fn search_player() {
-        let id = CLIENT
-            .get()
+        let id = get_client()
             .await
             .search_for_player("NaoFredzibob")
             .await
@@ -296,8 +298,7 @@ mod test {
 
     #[tokio::test]
     async fn operators_statistics() {
-        let stats = CLIENT
-            .get()
+        let stats = get_client()
             .await
             .get_operators(mock_player_id())
             .await
@@ -307,14 +308,13 @@ mod test {
 
     #[tokio::test]
     async fn maps_statistics() {
-        let stats = CLIENT.get().await.get_maps(mock_player_id()).await.unwrap();
+        let stats = get_client().await.get_maps(mock_player_id()).await.unwrap();
         println!("{:?}", stats);
     }
 
     #[tokio::test]
     async fn full_player_profiles() {
-        _ = CLIENT
-            .get()
+        _ = get_client()
             .await
             .get_full_profiles(mock_player_id())
             .await
@@ -325,7 +325,7 @@ mod test {
     async fn playtime() {
         let player_id = mock_player_id();
 
-        let playtime = CLIENT.get().await.get_playtime(player_id).await.unwrap();
+        let playtime = get_client().await.get_playtime(player_id).await.unwrap();
 
         // Assert PvP
         assert!(*playtime.statistics().pvp_time_played().duration() > Duration::hours(1));
