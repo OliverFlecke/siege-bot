@@ -59,6 +59,9 @@ jobs:
           command: generate-lockfile
       - name: cargo llvm-cov
         run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
+        env:
+          UBISOFT_EMAIL: ${{ secrets.UBISOFT_EMAIL }}
+          UBISOFT_PASSWORD: ${{ secrets.UBISOFT_PASSWORD }}
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
