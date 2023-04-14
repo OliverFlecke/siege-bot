@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::auth::{Auth, ConnectError, ConnectResponse};
-use crate::constants::{UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
+use crate::constants::{UBI_APP_ID, UBI_USER_AGENT};
 use crate::models::{
     FullProfile, PlatformFamily, PlatformType, PlayType, PlayerProfile, PlaytimeProfile,
     PlaytimeResponse, StatisticResponse,
@@ -27,6 +27,32 @@ impl From<ConnectResponse> for Client {
 }
 
 impl Client {
+    /// Search for a Ubisoft player ID.
+    pub async fn search_for_player(&self, name: &str) -> Result<Uuid, ConnectError> {
+        #[derive(Deserialize)]
+        struct Response {
+            profiles: Vec<PlayerProfile>,
+        }
+
+        let url = "https://public-ubiservices.ubi.com/v3/profiles";
+        let url = Url::parse_with_params(
+            url,
+            &[
+                ("nameOnPlatform", name),
+                ("platformType", PlatformType::Uplay.to_string().as_str()),
+            ],
+        )
+        .expect("should always be a valid url");
+
+        let response = self.get(url).await?;
+        let profile: Response = response
+            .json()
+            .await
+            .map_err(|_| ConnectError::UnexpectedResponse)?;
+
+        Ok(*profile.profiles[0].profile_id())
+    }
+
     /// Get the playtime for the given player.
     /// See the `PlaytimeProfile` structs for the fields it contains.
     pub async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile, ConnectError> {
@@ -106,32 +132,6 @@ impl Client {
             .collect::<Vec<_>>())
     }
 
-    pub async fn get_statistics(&self, player_id: Uuid) -> Result<(), ConnectError> {
-        let platform = PlatformType::Uplay;
-        let statistics = vec!["operatorpvp_kills"];
-
-        let url = format!(
-            "{}/v1/spaces/{space}/sandboxes/{sandbox}/",
-            UBI_SERVICES_URL,
-            space = platform.get_space(),
-            sandbox = platform.get_sandbox(),
-        );
-        let url = format!("{url}/playerstats2/statistics");
-        let url = Url::parse_with_params(
-            url.as_str(),
-            &[
-                ("populations", player_id.to_string()),
-                ("statistics", statistics.join(",")),
-            ],
-        )
-        .expect("is a valid url");
-
-        let response = self.get(url).await?;
-
-        println!("{}", response.text().await.unwrap());
-        todo!()
-    }
-
     /// Retreive statistics about operators for a given player.
     pub async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
         let url = create_summary_query(player_id, AggregationType::Operators);
@@ -151,58 +151,6 @@ impl Client {
             tracing::error!("Error: {err:?}");
             ConnectError::UnexpectedResponse
         })
-    }
-
-    pub async fn get_seasonal_summaries(
-        &self,
-        player_id: Uuid,
-    ) -> Result<StatisticResponse, ConnectError> {
-        // TODO: The response here does not match correctly. Look into `samples/seasonal.json`.
-        // #[derive(Deserialize)]
-        // #[serde(rename_all = "camelCase")]
-        // struct Response {
-        //     user_id: Uuid,
-        //     profile_data: ProfileData,
-        // }
-
-        // #[derive(Deserialize)]
-        // #[serde(rename_all = "camelCase")]
-        // struct ProfileData {
-
-        // }
-        let url = create_summary_query(player_id, AggregationType::Summary);
-
-        let response = self.get(url).await?;
-        response
-            .json::<StatisticResponse>()
-            .await
-            .map_err(|_| ConnectError::UnexpectedResponse)
-    }
-
-    /// Search for a Ubisoft player ID.
-    pub async fn search_for_player(&self, name: &str) -> Result<Uuid, ConnectError> {
-        #[derive(Deserialize)]
-        struct Response {
-            profiles: Vec<PlayerProfile>,
-        }
-
-        let url = "https://public-ubiservices.ubi.com/v3/profiles";
-        let url = Url::parse_with_params(
-            url,
-            &[
-                ("nameOnPlatform", name),
-                ("platformType", PlatformType::Uplay.to_string().as_str()),
-            ],
-        )
-        .expect("should always be a valid url");
-
-        let response = self.get(url).await?;
-        let profile: Response = response
-            .json()
-            .await
-            .map_err(|_| ConnectError::UnexpectedResponse)?;
-
-        Ok(*profile.profiles[0].profile_id())
     }
 
     async fn get(&self, url: Url) -> Result<reqwest::Response, ConnectError> {
@@ -306,37 +254,40 @@ fn create_summary_query(player_id: Uuid, aggregation: AggregationType) -> Url {
 
 #[cfg(test)]
 mod test {
+    use async_once::AsyncOnce;
     use chrono::{DateTime, Duration};
+    use lazy_static::lazy_static;
 
     use crate::auth::Auth;
 
     use super::*;
 
+    lazy_static! {
+        static ref CLIENT: AsyncOnce<Client> = AsyncOnce::new(async {
+            Into::<Client>::into(Auth::from_environment().connect().await.unwrap())
+        });
+    }
+
     fn mock_player_id() -> Uuid {
         Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("this is a valid guid")
     }
 
-    async fn create_client_from_environment() -> Client {
-        let auth = Auth::from_environment();
-
-        Into::<Client>::into(auth.connect().await.unwrap())
-    }
-
     #[test]
-    #[ignore]
     fn operators_url() {
-        let expected = "https://prod.datadev.ubisoft.com/v1/profiles/e7679633-31ff-4f44-8cfd-d0ff81e2c10a/playerstats?spaceId=5172a557-50b5-4665-b7db-e3f2e8c5041d&view=current&aggregation=operators&gameMode=all%2Cranked%2Ccasual%2Cunranked&platformGroup=PC&teamRole=all%2CAttacker%2CDefender";
+        let expected = "https://prod.datadev.ubisoft.com/v1/profiles/e7679633-31ff-4f44-8cfd-d0ff81e2c10a/playerstats?view=current&platformGroup=PC&aggregation=operators&spaceId=5172a557-50b5-4665-b7db-e3f2e8c5041d&gameMode=all%2Cranked%2Ccansal%2Cunranked&teamRole=all%2CAttacker%2CDefender";
 
         let actual = create_summary_query(mock_player_id(), AggregationType::Operators);
         assert_eq!(actual.as_str(), expected);
     }
 
     #[tokio::test]
-    #[ignore = "Missing credentials in CI"]
     async fn search_player() {
-        let client = create_client_from_environment().await;
-
-        let id = client.search_for_player("NaoFredzibob").await.unwrap();
+        let id = CLIENT
+            .get()
+            .await
+            .search_for_player("NaoFredzibob")
+            .await
+            .unwrap();
         assert_eq!(
             id,
             Uuid::parse_str("e7679633-31ff-4f44-8cfd-d0ff81e2c10a").expect("is valid")
@@ -344,56 +295,37 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore = "Missing credentials in CI"]
     async fn operators_statistics() {
-        let client = create_client_from_environment().await;
-
-        let stats = client.get_operators(mock_player_id()).await.unwrap();
-        println!("{:?}", stats);
-    }
-
-    #[tokio::test]
-    #[ignore = "Missing credentials in CI"]
-    async fn maps_statistics() {
-        let client = create_client_from_environment().await;
-
-        let stats = client.get_maps(mock_player_id()).await.unwrap();
-        println!("{:?}", stats);
-    }
-
-    #[tokio::test]
-    #[ignore = "not yet implemented"]
-    async fn seasonal_statistics() {
-        let client = create_client_from_environment().await;
-        let stats = client
-            .get_seasonal_summaries(mock_player_id())
+        let stats = CLIENT
+            .get()
+            .await
+            .get_operators(mock_player_id())
             .await
             .unwrap();
         println!("{:?}", stats);
     }
 
     #[tokio::test]
-    #[ignore = "not yet implemented"]
-    async fn statistic2_api() {
-        let client = create_client_from_environment().await;
-
-        client.get_statistics(mock_player_id()).await.unwrap();
+    async fn maps_statistics() {
+        let stats = CLIENT.get().await.get_maps(mock_player_id()).await.unwrap();
+        println!("{:?}", stats);
     }
 
     #[tokio::test]
-    #[ignore = "Missing credentials in CI"]
     async fn full_player_profiles() {
-        let client = create_client_from_environment().await;
-
-        _ = client.get_full_profiles(mock_player_id()).await.unwrap();
+        _ = CLIENT
+            .get()
+            .await
+            .get_full_profiles(mock_player_id())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
-    #[ignore = "Missing credentials in CI"]
     async fn playtime() {
         let player_id = mock_player_id();
-        let client = create_client_from_environment().await;
-        let playtime = client.get_playtime(player_id).await.unwrap();
+
+        let playtime = CLIENT.get().await.get_playtime(player_id).await.unwrap();
 
         // Assert PvP
         assert!(*playtime.statistics().pvp_time_played().duration() > Duration::hours(1));
