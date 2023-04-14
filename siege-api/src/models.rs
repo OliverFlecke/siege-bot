@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use std::fmt::Display;
+use strum::EnumIter;
 
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use derive_getters::Getters;
@@ -22,7 +23,7 @@ pub struct PlayerProfile {
 }
 
 /// Represents the different platforms that it is possible to play Siege on.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, EnumIter)]
 #[serde(rename_all = "lowercase")]
 pub enum PlatformType {
     Uplay,
@@ -30,7 +31,7 @@ pub enum PlatformType {
     #[serde(rename = "xbl")]
     Xbox,
     #[serde(rename = "psn")]
-    Playstation,
+    PlayStation,
 }
 
 impl Display for PlatformType {
@@ -54,7 +55,7 @@ impl PlatformType {
         match self {
             PlatformType::Uplay => &UPLAY_SPACE,
             PlatformType::Xbox => &XBOX_SPACE,
-            PlatformType::Playstation => &PLAYSTATION_SPACE,
+            PlatformType::PlayStation => &PLAYSTATION_SPACE,
         }
     }
 
@@ -69,7 +70,7 @@ impl PlatformType {
         match self {
             PlatformType::Uplay => &UPLAY,
             PlatformType::Xbox => &XBOX,
-            PlatformType::Playstation => &PLAYSTATION,
+            PlatformType::PlayStation => &PLAYSTATION,
         }
     }
 }
@@ -142,7 +143,7 @@ impl SeasonStatistics {
     }
 }
 
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Default, Deserialize, Getters, Clone, Copy)]
 pub struct MatchOutcomes {
     abandons: u64,
     losses: u64,
@@ -198,7 +199,7 @@ mod mappers {
     where
         D: Deserializer<'de>,
     {
-        let s: &str = Deserialize::deserialize(deserializer)?;
+        let s: String = Deserialize::deserialize(deserializer)?;
         let n: i64 = s.parse().map_err(|_| {
             serde::de::Error::custom(format!(
                 "cannot convert string value to an unsinged integer: {s}"
@@ -239,5 +240,76 @@ mod mappers {
         let duration = Duration::milliseconds((item * 1000f64).round() as i64);
 
         Ok(duration)
+    }
+
+    #[cfg(test)]
+    mod test {
+        use serde::de::{
+            value::{Error, StrDeserializer, StringDeserializer},
+            IntoDeserializer,
+        };
+
+        use super::*;
+
+        #[test]
+        fn valid_string_to_duration() {
+            let value = "1234".to_string();
+            let des: StringDeserializer<Error> = value.into_deserializer();
+
+            assert_eq!(int_string_to_duration(des), Ok(Duration::seconds(1234)));
+        }
+
+        #[test]
+        fn invalid_string_to_duration() {
+            let des: StrDeserializer<Error> = "not a number".into_deserializer();
+            assert!(int_string_to_duration(des).is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use strum::IntoEnumIterator;
+
+    use super::*;
+
+    #[test]
+    fn get_spaces() {
+        PlatformType::iter().for_each(|x| {
+            x.get_space();
+        });
+    }
+
+    #[test]
+    fn get_sandboxes() {
+        PlatformType::iter().for_each(|x| {
+            x.get_sandbox();
+        });
+    }
+
+    // SeasonStatistics
+    #[test]
+    fn kd_on_season_statistics() {
+        let stats = SeasonStatistics {
+            kills: 124,
+            deaths: 100,
+            match_outcomes: MatchOutcomes::default(),
+        };
+
+        assert_eq!(stats.kd(), 1.24);
+    }
+
+    #[test]
+    fn win_rates_on_match_outcomes() {
+        let outcomes = MatchOutcomes {
+            abandons: 1,
+            losses: 10,
+            wins: 12,
+        };
+
+        assert_eq!(outcomes.total_matches(), 22);
+        assert_eq!(outcomes.total_matches_with_abandons(), 23);
+        assert_eq!(outcomes.win_rate(), 0.5454545454545454);
+        assert_eq!(outcomes.win_rate_with_abandons(), 0.5217391304347826);
     }
 }

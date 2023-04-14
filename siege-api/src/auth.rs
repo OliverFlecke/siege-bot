@@ -132,24 +132,37 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore = "Missing credentials in CI"]
-    async fn connect() {
-        let auth = Auth::from_environment();
-
-        let response = auth.connect().await;
-        println!("{:?}", response.unwrap());
-    }
-
-    #[tokio::test]
     async fn connect_with_incorrect_credentials() {
-        let auth = Auth {
-            username: "abc".to_string(),
-            password: "123".to_string(),
-        };
+        let auth = Auth::new("abc".to_string(), "123".to_string());
 
         assert_eq!(
             auth.connect().await.unwrap_err(),
             ConnectError::InvalidPassword
+        );
+    }
+
+    #[test]
+    fn auth_debug() {
+        let auth = Auth::new("abc".to_string(), "123".to_string());
+
+        assert_eq!(
+            format!("{auth:?}"),
+            "Auth { username: \"abc\", password: \"123\" }"
+        );
+    }
+
+    #[test]
+    fn connect_error_eq() {
+        assert_eq!(ConnectError::InvalidPassword, ConnectError::InvalidPassword);
+        assert_eq!(
+            ConnectError::UnexpectedResponse,
+            ConnectError::UnexpectedResponse
+        );
+
+        // Not equal
+        assert_ne!(
+            ConnectError::InvalidPassword,
+            ConnectError::UnexpectedResponse
         );
     }
 }
