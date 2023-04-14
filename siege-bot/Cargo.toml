@@ -24,3 +24,7 @@ async-trait = "0.1.68"
 duplicate = "1.0.0"
 strum = "0.24.1"
 serde_json = "1.0.95"
+
+# Fixes for specific versions
+# Fix for https://github.com/OliverFlecke/siege-bot/security/dependabot/7
+h2 = "0.3.17"
