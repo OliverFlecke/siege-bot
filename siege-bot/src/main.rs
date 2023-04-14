@@ -157,7 +157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         data.insert::<SiegeApi>(siege_client);
     }
     {
-        let lookup = PlayerLookup::load()?;
+        let lookup = PlayerLookup::load(".players.json")?;
         let mut data = client.data.write().await;
         data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(lookup)));
     }
