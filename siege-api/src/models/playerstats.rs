@@ -8,7 +8,7 @@ use crate::{
 
 use super::*;
 
-#[derive(Debug, Clone, Copy, strum::Display, strum::EnumString, strum::EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString, strum::EnumIter)]
 pub enum SideOrAll {
     All,
     Attacker,
@@ -245,6 +245,72 @@ impl Statistics {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn side_or_all_debug() {
+        assert_eq!(format!("{:?}", SideOrAll::All), "All");
+        assert_eq!(format!("{:?}", SideOrAll::Attacker), "Attacker");
+        assert_eq!(format!("{:?}", SideOrAll::Defender), "Defender");
+    }
+
+    #[test]
+    fn side_or_all_display() {
+        assert_eq!(format!("{}", SideOrAll::All), "All");
+        assert_eq!(format!("{}", SideOrAll::Attacker), "Attacker");
+        assert_eq!(format!("{}", SideOrAll::Defender), "Defender");
+    }
+
+    #[test]
+    fn from_side_to_side_or_all() {
+        assert_eq!(Into::<SideOrAll>::into(Side::Attacker), SideOrAll::Attacker);
+        assert_eq!(Into::<SideOrAll>::into(Side::Defender), SideOrAll::Defender);
+    }
+
+    #[test]
+    fn get_statistics_from_sides() {
+        use strum::IntoEnumIterator;
+
+        let content = std::fs::read_to_string("../samples/operators.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+
+        // Assert this will return valid statistics for the given side.
+        SideOrAll::iter().for_each(|side| {
+            stats.get_statistics_from_side(side).unwrap();
+        });
+    }
+
+    #[test]
+    fn get_operator() {
+        let content = std::fs::read_to_string("../samples/operators.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+
+        let operator = stats.get_operator(Operator::Hibana).unwrap();
+
+        assert_eq!(operator.name, Operator::Hibana);
+        assert_eq!(*operator.statistics.matches_played(), 3);
+    }
+
+    #[test]
+    fn get_map() {
+        let content = std::fs::read_to_string("../samples/maps.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+
+        let map = stats.get_map(Map::Yacht).unwrap();
+
+        assert_eq!(map.name, Map::Yacht);
+        assert_eq!(*map.statistics.matches_played(), 20);
+    }
+
+    #[test]
+    fn statistics_win_rates() {
+        let content = std::fs::read_to_string("../samples/operators.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+        let operator = stats.get_operator(Operator::Ying).unwrap();
+
+        assert_eq!(operator.statistics().opening_win_rate(), 0.6785714285714286);
+        assert_eq!(operator.statistics().matches_win_rate(), 0.5657894736842105);
+        assert_eq!(operator.statistics().rounds_win_rate(), 0.48);
+    }
 
     #[test]
     fn deserialize_general_statistics() {
