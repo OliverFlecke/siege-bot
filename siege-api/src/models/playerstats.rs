@@ -410,10 +410,7 @@ mod test {
 
         let statistic: GeneralStatistics = serde_json::from_str(sample).unwrap();
 
-        match statistic {
-            GeneralStatistics::Operator(_) => {}
-            _ => assert!(false),
-        }
+        assert!(matches!(statistic, GeneralStatistics::Operator(_)));
     }
 
     #[test]
@@ -461,9 +458,6 @@ mod test {
 
         let statistic: GeneralStatistics = serde_json::from_str(sample).unwrap();
 
-        match statistic {
-            GeneralStatistics::Maps(_) => {}
-            _ => assert!(false),
-        }
+        assert!(matches!(statistic, GeneralStatistics::Maps(_)));
     }
 }
