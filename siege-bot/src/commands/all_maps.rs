@@ -11,7 +11,7 @@ use serenity::{
     prelude::Context,
     utils::Color,
 };
-use siege_api::models::{GeneralStatistics, SideOrAll};
+use siege_api::models::{MapStatistics, SideOrAll};
 use strum::IntoEnumIterator;
 
 use crate::{commands::utils::ExtractEnumOption, formatting::FormatEmbedded, SiegeApi};
@@ -112,42 +112,13 @@ impl CommandHandler for AllMapsCommand {
         };
 
         let mut maps = response
-            .get_statistics_from_side(side)
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(|x| match x {
-                        GeneralStatistics::Maps(map) => Some(map),
-                        _ => None,
-                    })
-                    .filter(|x| *x.statistics().rounds_played() as i64 >= minimum_rounds)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap();
+            .get_maps(side)
+            .iter()
+            .filter(|x| *x.statistics().rounds_played() as i64 >= minimum_rounds)
+            .copied()
+            .collect::<Vec<_>>();
 
-        match sorting {
-            Sorting::Kd => {
-                maps.sort_by(|a, b| {
-                    b.statistics()
-                        .kill_death_ratio()
-                        .partial_cmp(a.statistics().kill_death_ratio())
-                        .expect("should always be valid")
-                });
-            }
-            Sorting::WinRate => {
-                maps.sort_by(|a, b| {
-                    b.statistics()
-                        .rounds_win_rate()
-                        .partial_cmp(&a.statistics().rounds_win_rate())
-                        .expect("should always be valid")
-                });
-            }
-            Sorting::RoundsPlayed => maps.sort_by(|a, b| {
-                b.statistics()
-                    .rounds_played()
-                    .cmp(a.statistics().rounds_played())
-            }),
-        };
+        sort(&mut maps, sorting);
 
         command
             .create_interaction_response(&ctx.http, |response| {
@@ -168,4 +139,30 @@ impl CommandHandler for AllMapsCommand {
 
         Ok(())
     }
+}
+
+fn sort(maps: &mut Vec<&MapStatistics>, sorting: Sorting) {
+    match sorting {
+        Sorting::Kd => {
+            maps.sort_by(|a, b| {
+                b.statistics()
+                    .kill_death_ratio()
+                    .partial_cmp(a.statistics().kill_death_ratio())
+                    .expect("should always be valid")
+            });
+        }
+        Sorting::WinRate => {
+            maps.sort_by(|a, b| {
+                b.statistics()
+                    .rounds_win_rate()
+                    .partial_cmp(&a.statistics().rounds_win_rate())
+                    .expect("should always be valid")
+            });
+        }
+        Sorting::RoundsPlayed => maps.sort_by(|a, b| {
+            b.statistics()
+                .rounds_played()
+                .cmp(a.statistics().rounds_played())
+        }),
+    };
 }

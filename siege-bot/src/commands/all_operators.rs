@@ -11,7 +11,7 @@ use serenity::{
     prelude::Context,
     utils::Color,
 };
-use siege_api::{game_models::Side, models::GeneralStatistics};
+use siege_api::{game_models::Side, models::OperatorStatistics};
 
 use crate::{commands::utils::ExtractEnumOption, formatting::FormatEmbedded, SiegeApi};
 
@@ -108,41 +108,12 @@ impl CommandHandler for AllOperatorCommand {
         };
 
         let mut operators = operator_response
-            .get_statistics_from_side(side.into())
-            .map(|os| {
-                os.iter()
-                    .filter_map(|op| match op {
-                        GeneralStatistics::Operator(op) => Some(op),
-                        _ => None,
-                    })
-                    .filter(|op| *op.statistics().rounds_played() as i64 >= minimum_rounds)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap();
-
-        match sorting {
-            Sorting::Kd => {
-                operators.sort_by(|a, b| {
-                    b.statistics()
-                        .kill_death_ratio()
-                        .partial_cmp(a.statistics().kill_death_ratio())
-                        .expect("should always be valid")
-                });
-            }
-            Sorting::WinRate => {
-                operators.sort_by(|a, b| {
-                    b.statistics()
-                        .rounds_win_rate()
-                        .partial_cmp(&a.statistics().rounds_win_rate())
-                        .expect("should always be valid")
-                });
-            }
-            Sorting::RoundsPlayed => operators.sort_by(|a, b| {
-                b.statistics()
-                    .rounds_played()
-                    .cmp(a.statistics().rounds_played())
-            }),
-        };
+            .get_operators(side.into())
+            .iter()
+            .filter(|op| *op.statistics().rounds_played() as i64 >= minimum_rounds)
+            .copied()
+            .collect::<Vec<_>>();
+        sort(&mut operators, sorting);
 
         command
             .create_interaction_response(&ctx.http, |response| {
@@ -163,4 +134,30 @@ impl CommandHandler for AllOperatorCommand {
 
         Ok(())
     }
+}
+
+fn sort(operators: &mut Vec<&OperatorStatistics>, sorting: Sorting) {
+    match sorting {
+        Sorting::Kd => {
+            operators.sort_by(|a, b| {
+                b.statistics()
+                    .kill_death_ratio()
+                    .partial_cmp(a.statistics().kill_death_ratio())
+                    .expect("should always be valid")
+            });
+        }
+        Sorting::WinRate => {
+            operators.sort_by(|a, b| {
+                b.statistics()
+                    .rounds_win_rate()
+                    .partial_cmp(&a.statistics().rounds_win_rate())
+                    .expect("should always be valid")
+            });
+        }
+        Sorting::RoundsPlayed => operators.sort_by(|a, b| {
+            b.statistics()
+                .rounds_played()
+                .cmp(a.statistics().rounds_played())
+        }),
+    };
 }

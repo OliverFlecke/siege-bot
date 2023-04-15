@@ -40,6 +40,9 @@ pub struct StatisticResponse {
 }
 
 impl StatisticResponse {
+    /// Get all statistics for the given side.
+    ///
+    /// NOTE: Currently only the statistics from PC is returned.
     pub fn get_statistics_from_side(&self, role: SideOrAll) -> Option<&Vec<GeneralStatistics>> {
         let roles = match self.platforms.pc.game_modes.all.as_ref() {
             Some(r) => r,
@@ -53,30 +56,47 @@ impl StatisticResponse {
         }
     }
 
+    /// Utility method to help extract specific statistics types from self.
+    fn get_statistics<T, F>(&self, side: SideOrAll, filter: F) -> Vec<&T>
+    where
+        F: Fn(&GeneralStatistics) -> Option<&T>,
+    {
+        self.get_statistics_from_side(side)
+            .map(|x| x.iter().filter_map(filter).collect())
+            .unwrap_or_else(Vec::default)
+    }
+
+    /// Extract all operators from this side.
+    pub fn get_operators(&self, side: SideOrAll) -> Vec<&OperatorStatistics> {
+        self.get_statistics(side, |x| match x {
+            GeneralStatistics::Operator(op) => Some(op),
+            _ => None,
+        })
+    }
+
+    /// Get all maps statistics for a given side.
+    pub fn get_maps(&self, side: SideOrAll) -> Vec<&MapStatistics> {
+        self.get_statistics(side, |x| match x {
+            GeneralStatistics::Maps(map) => Some(map),
+            _ => None,
+        })
+    }
+
     /// Get an operator with a specific name.
     pub fn get_operator(&self, operator: Operator) -> Option<&OperatorStatistics> {
-        self.get_statistics_from_side(SideOrAll::All).and_then(|x| {
-            x.iter()
-                .filter_map(|x| match x {
-                    GeneralStatistics::Operator(op) => Some(op),
-                    _ => None,
-                })
-                .find(|op| op.name == operator)
-        })
+        // Can always use `All` here, as all operators are always included here.
+        self.get_operators(SideOrAll::All)
+            .iter()
+            .find(|op| op.name == operator)
+            .copied()
     }
 
     /// Get statistics for a given map.
     pub fn get_map(&self, map_name: Map) -> Option<&MapStatistics> {
-        self.get_statistics_from_side(SideOrAll::All)
-            .and_then(|stats| {
-                stats
-                    .iter()
-                    .filter_map(|x| match x {
-                        GeneralStatistics::Maps(map) => Some(map),
-                        _ => None,
-                    })
-                    .find(|map| *map.name() == map_name)
-            })
+        self.get_maps(SideOrAll::All)
+            .iter()
+            .find(|map| *map.name() == map_name)
+            .copied()
     }
 }
 
@@ -277,6 +297,28 @@ mod test {
         SideOrAll::iter().for_each(|side| {
             stats.get_statistics_from_side(side).unwrap();
         });
+    }
+
+    #[test]
+    fn get_all_operators() {
+        let content = std::fs::read_to_string("../samples/operators.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+
+        // Act
+        assert_eq!(stats.get_operators(SideOrAll::All).len(), 47);
+        assert_eq!(stats.get_operators(SideOrAll::Defender).len(), 27);
+        assert_eq!(stats.get_operators(SideOrAll::Attacker).len(), 20);
+    }
+
+    #[test]
+    fn get_all_maps() {
+        let content = std::fs::read_to_string("../samples/maps.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+
+        // Act
+        assert_eq!(stats.get_maps(SideOrAll::All).len(), 23);
+        assert_eq!(stats.get_maps(SideOrAll::Defender).len(), 22);
+        assert_eq!(stats.get_maps(SideOrAll::Attacker).len(), 23);
     }
 
     #[test]
