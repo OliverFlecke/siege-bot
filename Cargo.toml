@@ -1,2 +1,5 @@
 [workspace]
 members = ["siege-api", "siege-bot"]
+
+[profile.cov]
+inherits = "test"
