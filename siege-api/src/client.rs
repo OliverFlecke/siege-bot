@@ -7,8 +7,8 @@ use uuid::Uuid;
 use crate::auth::{Auth, ConnectError, ConnectResponse};
 use crate::constants::{UBI_APP_ID, UBI_USER_AGENT};
 use crate::models::{
-    FullProfile, PlatformFamily, PlatformType, PlayType, PlayerProfile, PlaytimeProfile,
-    PlaytimeResponse, StatisticResponse,
+    FullProfile, PlatformType, PlayerProfile, PlaytimeProfile, PlaytimeResponse, RankedV2Response,
+    StatisticResponse,
 };
 
 #[derive(Debug)]
@@ -102,33 +102,15 @@ impl Client {
         .expect("url is valid");
 
         let response = self.get(url).await?;
-        // Helper structs to extract the unnecssary nesting from the API.
-        #[derive(Deserialize)]
-        struct Response {
-            platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
-        }
-        #[derive(Deserialize)]
-        struct PlatformFamiliesFullProfile {
-            #[allow(dead_code)]
-            platform_family: PlatformFamily,
-            board_ids_full_profiles: Vec<Board>,
-        }
-        #[derive(Deserialize)]
-        struct Board {
-            #[allow(dead_code)]
-            board_id: PlayType,
-            full_profiles: Vec<FullProfile>,
-        }
-
-        let profile = response.json::<Response>().await.map_err(|err| {
+        let profile = response.json::<RankedV2Response>().await.map_err(|err| {
             tracing::error!("Error: {err:?}");
             ConnectError::UnexpectedResponse
         })?;
 
-        Ok(profile.platform_families_full_profiles[0]
-            .board_ids_full_profiles
+        Ok(profile.platform_families_full_profiles()[0]
+            .board_ids_full_profiles()
             .iter()
-            .map(|x| x.full_profiles[0])
+            .map(|x| x.full_profiles()[0])
             .collect::<Vec<_>>())
     }
 
