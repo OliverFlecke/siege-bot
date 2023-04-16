@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::auth::{Auth, ConnectError, ConnectResponse};
-use crate::constants::{UBI_APP_ID, UBI_USER_AGENT};
+use crate::constants::{DEFAULT_SPACE_ID, UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
 use crate::models::{
     FullProfile, PlatformType, PlayerProfile, PlaytimeProfile, PlaytimeResponse, RankedV2Response,
     StatisticResponse,
@@ -34,9 +34,8 @@ impl Client {
             profiles: Vec<PlayerProfile>,
         }
 
-        let url = "https://public-ubiservices.ubi.com/v3/profiles";
         let url = Url::parse_with_params(
-            url,
+            format!("{UBI_SERVICES_URL}/v3/profiles").as_str(),
             &[
                 ("nameOnPlatform", name),
                 ("platformType", PlatformType::Uplay.to_string().as_str()),
@@ -56,16 +55,11 @@ impl Client {
     /// Get the playtime for the given player.
     /// See the `PlaytimeProfile` structs for the fields it contains.
     pub async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile, ConnectError> {
-        // TODO: Should `spaceId` be a parameter?
-        let url = "https://public-ubiservices.ubi.com/v1/profiles/stats";
         let url = Url::parse_with_params(
-            url,
+            format!("{UBI_SERVICES_URL}/v1/profiles/stats").as_str(),
             &[
                 ("profileIds", player_id.to_string()),
-                (
-                    "spaceId",
-                    "0d2ae42d-4c27-4cb7-af6c-2099062302bb".to_string(),
-                ),
+                ("spaceId", DEFAULT_SPACE_ID.to_string()),
                 (
                     "statsName",
                     "PPvPTimePlayed,PPvETimePlayed,PTotalTimePlayed,PClearanceLevel".to_string(),
@@ -90,9 +84,11 @@ impl Client {
         &self,
         player_id: Uuid,
     ) -> Result<Vec<FullProfile>, ConnectError> {
-        let url = "https://public-ubiservices.ubi.com/v2/spaces/0d2ae42d-4c27-4cb7-af6c-2099062302bb/title/r6s/skill/full_profiles";
         let url = Url::parse_with_params(
-            url,
+            format!(
+                "{UBI_SERVICES_URL}/v2/spaces/{DEFAULT_SPACE_ID}/title/r6s/skill/full_profiles"
+            )
+            .as_str(),
             &[
                 ("profile_ids", player_id.to_string()),
                 // TODO: This mapping should happen from `PlatformType`
