@@ -8,7 +8,7 @@ use serenity::{
 };
 use uuid::Uuid;
 
-use super::{command::DiscordAppCmd, CmdResult, CommandError};
+use super::{discord_app_command::DiscordAppCmd, CmdResult, CommandError};
 
 /// Wrapper for the `serenity::Context` for mocking.
 #[cfg_attr(test, mockall::automock)]

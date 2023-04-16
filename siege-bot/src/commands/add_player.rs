@@ -8,7 +8,9 @@ use serenity::{
 
 use crate::SiegeApi;
 
-use super::{command::DiscordAppCmd, context::DiscordContext, CmdResult, CommandHandler};
+use super::{
+    context::DiscordContext, discord_app_command::DiscordAppCmd, CmdResult, CommandHandler,
+};
 
 pub struct AddPlayerCommand;
 

@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use serenity::{builder::CreateApplicationCommand, model::prelude::command::CommandOptionType};
 use thiserror::Error;
 
-use self::{command::DiscordAppCmd, context::DiscordContext};
+use self::{context::DiscordContext, discord_app_command::DiscordAppCmd};
 
 pub mod add_player;
 pub mod all_maps;
 pub mod all_operators;
-pub mod command;
 pub mod context;
+pub mod discord_app_command;
 pub mod id;
 pub mod map;
 pub mod operator;
@@ -37,8 +37,6 @@ pub enum CommandError {
 
 pub type CmdResult = core::result::Result<(), CommandError>;
 
-// TODO: Should these traits/functions be moved to a utils module?
-
 trait AddUserOptionToCommand {
     fn add_user_option(&mut self) -> &mut Self;
 }
@@ -52,39 +50,5 @@ impl AddUserOptionToCommand for CreateApplicationCommand {
                 .kind(CommandOptionType::User)
                 .required(false)
         })
-    }
-}
-
-mod utils {
-    use std::str::FromStr;
-
-    use serenity::model::prelude::interaction::application_command::{
-        ApplicationCommandInteraction, CommandDataOptionValue,
-    };
-
-    pub trait ExtractEnumOption {
-        fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
-        where
-            T: FromStr;
-    }
-
-    impl ExtractEnumOption for &ApplicationCommandInteraction {
-        fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
-        where
-            T: FromStr,
-        {
-            self.data
-                .options
-                .iter()
-                .find(|x| x.name == option_name)
-                .and_then(|x| x.resolved.as_ref())
-                .and_then(|x| {
-                    if let CommandDataOptionValue::String(value) = x {
-                        value.parse::<T>().ok()
-                    } else {
-                        None
-                    }
-                })
-        }
     }
 }

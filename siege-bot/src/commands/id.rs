@@ -6,7 +6,9 @@ use serenity::{
     },
 };
 
-use super::{command::DiscordAppCmd, context::DiscordContext, CmdResult, CommandHandler};
+use super::{
+    context::DiscordContext, discord_app_command::DiscordAppCmd, CmdResult, CommandHandler,
+};
 
 pub struct IdCommand;
 
@@ -43,15 +45,13 @@ impl CommandHandler for IdCommand {
     }
 }
 
-impl IdCommand {}
-
 #[cfg(test)]
 mod test {
     use mockall::predicate::{self, *};
     use serde_json::{json, Value};
     use serenity::model::user::User;
 
-    use crate::commands::{command::MockDiscordAppCmd, context::MockDiscordContext};
+    use crate::commands::{context::MockDiscordContext, discord_app_command::MockDiscordAppCmd};
 
     use super::*;
 

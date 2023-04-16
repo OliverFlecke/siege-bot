@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use serenity::builder::CreateApplicationCommand;
 
-use super::{command::DiscordAppCmd, context::DiscordContext, CmdResult, CommandHandler};
+use super::{
+    context::DiscordContext, discord_app_command::DiscordAppCmd, CmdResult, CommandHandler,
+};
 
 pub struct PingCommand;
 

@@ -12,7 +12,7 @@ use siege_api::maps::Map;
 use crate::{constants::NAME, formatting::FormatEmbedded, SiegeApi};
 
 use super::{
-    command::DiscordAppCmd, context::DiscordContext, AddUserOptionToCommand, CmdResult,
+    context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
     CommandError, CommandHandler,
 };
 

@@ -7,7 +7,7 @@ use serenity::{
 use crate::SiegeApi;
 
 use super::{
-    command::DiscordAppCmd, context::DiscordContext, AddUserOptionToCommand, CmdResult,
+    context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
     CommandHandler,
 };
 
