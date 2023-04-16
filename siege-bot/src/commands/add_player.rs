@@ -93,17 +93,15 @@ mod test {
     use std::sync::Arc;
 
     use mockall::predicate::*;
-    use serenity::{
-        model::user::User,
-        prelude::{RwLock, TypeMap},
-    };
+    use serenity::{model::user::User, prelude::RwLock};
     use siege_api::auth::ConnectError;
     use uuid::Uuid;
 
     use crate::{
         commands::{
-            context::MockDiscordContext, discord_app_command::MockDiscordAppCmd,
-            test::create_mock_siege_client,
+            context::MockDiscordContext,
+            discord_app_command::MockDiscordAppCmd,
+            test::{create_mock_siege_client, register_client_in_type_map},
         },
         siege_player_lookup::MockPlayerLookup,
     };
@@ -152,14 +150,11 @@ mod test {
             .once()
             .return_once(|_, _| Ok(()));
 
-        // Setup lookup
-        let data = Arc::new(RwLock::new(TypeMap::default()));
+        register_client_in_type_map(&mut ctx, mock_client).await;
         {
-            let mut data = data.write().await;
-            data.insert::<SiegeApi>(Arc::new(mock_client));
+            let mut data = ctx.data().write().await;
             data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(mock_lookup)));
         }
-        ctx.expect_data().return_const(data);
 
         // Arrange command
         let mut command = MockDiscordAppCmd::new();
@@ -205,14 +200,11 @@ mod test {
             .once()
             .return_once(|_, _| Err(std::io::Error::new(std::io::ErrorKind::Other, "")));
 
-        // Setup lookup
-        let data = Arc::new(RwLock::new(TypeMap::default()));
+        register_client_in_type_map(&mut ctx, mock_client).await;
         {
-            let mut data = data.write().await;
-            data.insert::<SiegeApi>(Arc::new(mock_client));
+            let mut data = ctx.data().write().await;
             data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(mock_lookup)));
         }
-        ctx.expect_data().return_const(data);
 
         // Arrange command
         let mut command = MockDiscordAppCmd::new();
@@ -252,15 +244,11 @@ mod test {
             .return_once(|_| Err(ConnectError::InvalidPassword));
 
         let mock_lookup = MockPlayerLookup::default();
-
-        // Setup lookup
-        let data = Arc::new(RwLock::new(TypeMap::default()));
+        register_client_in_type_map(&mut ctx, mock_client).await;
         {
-            let mut data = data.write().await;
-            data.insert::<SiegeApi>(Arc::new(mock_client));
+            let mut data = ctx.data().write().await;
             data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(mock_lookup)));
         }
-        ctx.expect_data().return_const(data);
 
         // Arrange command
         let mut command = MockDiscordAppCmd::new();

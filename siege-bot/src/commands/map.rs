@@ -54,21 +54,25 @@ impl CommandHandler for MapCommand {
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
-            siege_client.get_maps(player_id).await.unwrap()
+            match siege_client.get_maps(player_id).await {
+                Ok(data) => data,
+                Err(err) => {
+                    tracing::error!("Failed to fetch data: {err:?}");
+                    return command.send_text(ctx.http(), "Failed to fetch data").await;
+                }
+            }
         };
 
         let map = match response.get_map(map) {
             Some(map) => map,
             None => {
-                command
+                return command
                     .send_text(
                         ctx.http(),
                         format!("{user} has not played the '{map:?}' map", user = user.tag())
                             .as_str(),
                     )
-                    .await?;
-
-                return Ok(());
+                    .await;
             }
         };
 
@@ -125,7 +129,16 @@ impl MapCommand {
 
 #[cfg(test)]
 mod test {
+    use mockall::predicate::*;
     use serde_json::Value;
+    use serenity::model::user::User;
+    use siege_api::models::StatisticResponse;
+    use uuid::Uuid;
+
+    use crate::commands::{
+        context::MockDiscordContext, discord_app_command::MockDiscordAppCmd,
+        test::register_client_in_type_map, test::MockSiegeClient,
+    };
 
     use super::*;
 
@@ -156,5 +169,82 @@ mod test {
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::User`
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn validate_run() {
+        let user = User::default();
+        let siege_id = Uuid::new_v4();
+
+        let mut ctx = MockDiscordContext::new();
+        ctx.expect_http().return_const(None);
+        ctx.expect_lookup_siege_player::<MockDiscordAppCmd>()
+            .with(always(), eq(user.clone()))
+            .once()
+            .returning(move |_, _| Ok(siege_id));
+
+        let mut mock_client = MockSiegeClient::default();
+        mock_client.expect_get_maps().once().returning(|_| {
+            let content = std::fs::read_to_string("../samples/maps.json").unwrap();
+            let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+            Ok(stats)
+        });
+        register_client_in_type_map(&mut ctx, mock_client).await;
+
+        // Setup command
+        let mut command = MockDiscordAppCmd::new();
+        command
+            .expect_get_user_from_command_or_default()
+            .return_const(user.clone());
+        command
+            .expect_extract_enum_option()
+            .once()
+            .with(eq(NAME))
+            .return_const(Map::Bank);
+        command
+            .expect_send_embedded()
+            .once()
+            .with(always(), always())
+            .return_once(|_, _| Ok(()));
+
+        assert!(MapCommand::run(&ctx, &command).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn validate_run_api_failed() {
+        let user = User::default();
+        let siege_id = Uuid::new_v4();
+
+        let mut ctx = MockDiscordContext::new();
+        ctx.expect_http().return_const(None);
+        ctx.expect_lookup_siege_player::<MockDiscordAppCmd>()
+            .with(always(), eq(user.clone()))
+            .once()
+            .returning(move |_, _| Ok(siege_id));
+
+        let mut mock_client = MockSiegeClient::default();
+        mock_client
+            .expect_get_maps()
+            .once()
+            .returning(|_| Err(siege_api::auth::ConnectError::InvalidPassword));
+        register_client_in_type_map(&mut ctx, mock_client).await;
+
+        // Setup command
+        let mut command = MockDiscordAppCmd::new();
+        command
+            .expect_get_user_from_command_or_default()
+            .return_const(user.clone());
+        command
+            .expect_extract_enum_option()
+            .once()
+            .with(eq(NAME))
+            .return_const(Map::Bank);
+        command
+            .expect_send_text()
+            .once()
+            .with(always(), eq("Failed to fetch data"))
+            .return_once(|_, _| Ok(()));
+
+        assert!(MapCommand::run(&ctx, &command).await.is_ok());
     }
 }

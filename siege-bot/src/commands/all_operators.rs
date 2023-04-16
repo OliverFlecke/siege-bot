@@ -96,7 +96,13 @@ impl CommandHandler for AllOperatorCommand {
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
-            siege_client.get_operators(player_id).await.unwrap()
+            match siege_client.get_operators(player_id).await {
+                Ok(data) => data,
+                Err(err) => {
+                    tracing::error!("Failed to fetch data: {err:?}");
+                    return command.send_text(ctx.http(), "Failed to fetch data").await;
+                }
+            }
         };
 
         let mut operators = operator_response
@@ -149,7 +155,25 @@ fn sort(operators: &mut [&OperatorStatistics], sorting: Sorting) {
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
+    use mockall::predicate::*;
     use serde_json::Value;
+    use serenity::{
+        model::user::User,
+        prelude::{RwLock, TypeMap},
+    };
+    use siege_api::models::StatisticResponse;
+    use uuid::Uuid;
+
+    use crate::{
+        commands::{
+            context::MockDiscordContext,
+            discord_app_command::MockDiscordAppCmd,
+            test::{register_client_in_type_map, MockSiegeClient},
+        },
+        siege_player_lookup::{MockPlayerLookup, SiegePlayerLookup},
+    };
 
     use super::*;
 
@@ -189,5 +213,120 @@ mod test {
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::Integer`
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn validate_run() {
+        let user = User::default();
+        let siege_id = Uuid::new_v4();
+
+        // Testing different combinations of arguments.
+        for (side, sorting, rounds) in vec![
+            (Some(Side::Attacker), Some(Sorting::Kd), Some(10 as i64)),
+            (Some(Side::Defender), Some(Sorting::RoundsPlayed), None),
+            (Some(Side::Defender), Some(Sorting::WinRate), None),
+        ] {
+            // Ensure the expected message is sent back through the command
+            let mut ctx = MockDiscordContext::new();
+            ctx.expect_http().return_const(None);
+            ctx.expect_lookup_siege_player::<MockDiscordAppCmd>()
+                .with(always(), eq(user.clone()))
+                .once()
+                .returning(move |_, _| Ok(siege_id));
+
+            let mut mock_client = MockSiegeClient::default();
+            mock_client.expect_get_operators().once().returning(|_| {
+                let content = std::fs::read_to_string("../samples/operators.json").unwrap();
+                let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+                Ok(stats)
+            });
+
+            // Ensure the right user/id pair is inserted into the lookup.
+            let mock_lookup = MockPlayerLookup::default();
+
+            // Setup lookup
+            let data = Arc::new(RwLock::new(TypeMap::default()));
+            {
+                let mut data = data.write().await;
+                data.insert::<SiegeApi>(Arc::new(mock_client));
+                data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(mock_lookup)));
+            }
+            ctx.expect_data().return_const(data);
+
+            let mut command = MockDiscordAppCmd::new();
+            command
+                .expect_extract_enum_option()
+                .with(eq(SIDE))
+                .return_once(move |_| side);
+            command
+                .expect_extract_enum_option::<Sorting>()
+                .with(eq(SORTING))
+                .return_const(sorting);
+            command
+                .expect_get_option()
+                .with(eq(MINIMUM_ROUNDS))
+                .return_const(rounds.map(|x| CommandDataOptionValue::Integer(x)));
+            command
+                .expect_get_user_from_command_or_default()
+                .return_const(user.clone());
+
+            // Assert the right message is sent back
+            command
+                .expect_send_embedded()
+                .once()
+                .with(always(), always())
+                .returning(|_, _| Ok(()));
+
+            // Act
+            assert!(AllOperatorCommand::run(&ctx, &command).await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn validate_run_api_failed() {
+        let user = User::default();
+        let siege_id = Uuid::new_v4();
+
+        // Ensure the expected message is sent back through the command
+        let mut ctx = MockDiscordContext::new();
+        ctx.expect_http().return_const(None);
+        ctx.expect_lookup_siege_player::<MockDiscordAppCmd>()
+            .with(always(), eq(user.clone()))
+            .once()
+            .returning(move |_, _| Ok(siege_id));
+
+        let mut mock_client = MockSiegeClient::default();
+        mock_client
+            .expect_get_operators()
+            .once()
+            .returning(|_| Err(siege_api::auth::ConnectError::InvalidPassword));
+        register_client_in_type_map(&mut ctx, mock_client).await;
+
+        let mut command = MockDiscordAppCmd::new();
+        command
+            .expect_extract_enum_option()
+            .with(eq(SIDE))
+            .return_const(Side::Attacker);
+        command
+            .expect_extract_enum_option::<Sorting>()
+            .with(eq(SORTING))
+            .return_const(None);
+        command
+            .expect_get_option()
+            .with(eq(MINIMUM_ROUNDS))
+            .return_const(None);
+        command
+            .expect_get_user_from_command_or_default()
+            .return_const(user.clone());
+
+        // Assert the right message is sent back
+        command
+            .expect_send_text()
+            .once()
+            .with(always(), eq("Failed to fetch data"))
+            .returning(|_, _| Ok(()));
+
+        // Act
+        assert!(AllOperatorCommand::run(&ctx, &command).await.is_ok());
     }
 }

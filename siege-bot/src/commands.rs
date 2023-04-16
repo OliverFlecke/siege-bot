@@ -55,9 +55,16 @@ impl AddUserOptionToCommand for CreateApplicationCommand {
 
 #[cfg(test)]
 pub(crate) mod test {
+    use std::sync::Arc;
+
     use async_trait::async_trait;
+    use serenity::prelude::{RwLock, TypeMap};
     use siege_api::models::{FullProfile, PlaytimeProfile, StatisticResponse};
     use uuid::Uuid;
+
+    use crate::SiegeApi;
+
+    use super::context::MockDiscordContext;
 
     mockall::mock! {
         pub SiegeClient {}
@@ -81,5 +88,17 @@ pub(crate) mod test {
 
     pub fn create_mock_siege_client() -> MockSiegeClient {
         MockSiegeClient::new()
+    }
+
+    pub async fn register_client_in_type_map(
+        ctx: &mut MockDiscordContext,
+        client: MockSiegeClient,
+    ) {
+        let data = Arc::new(RwLock::new(TypeMap::default()));
+        {
+            let mut data = data.write().await;
+            data.insert::<SiegeApi>(Arc::new(client));
+        }
+        ctx.expect_data().return_const(data);
     }
 }

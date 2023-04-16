@@ -161,23 +161,17 @@ fn sort(maps: &mut [&MapStatistics], sorting: Sorting) {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
 
     use mockall::predicate::*;
     use serde_json::Value;
-    use serenity::{
-        model::user::User,
-        prelude::{RwLock, TypeMap},
-    };
+    use serenity::model::user::User;
     use siege_api::models::StatisticResponse;
     use uuid::Uuid;
 
-    use crate::{
-        commands::{
-            context::MockDiscordContext, discord_app_command::MockDiscordAppCmd,
-            test::MockSiegeClient,
-        },
-        siege_player_lookup::{MockPlayerLookup, SiegePlayerLookup},
+    use crate::commands::{
+        context::MockDiscordContext,
+        discord_app_command::MockDiscordAppCmd,
+        test::{register_client_in_type_map, MockSiegeClient},
     };
 
     use super::*;
@@ -232,7 +226,6 @@ mod test {
             (Some(SideOrAll::Defender), Some(Sorting::RoundsPlayed), None),
             (Some(SideOrAll::Defender), Some(Sorting::WinRate), None),
         ] {
-            // Ensure the expected message is sent back through the command
             let mut ctx = MockDiscordContext::new();
             ctx.expect_http().return_const(None);
             ctx.expect_lookup_siege_player::<MockDiscordAppCmd>()
@@ -246,18 +239,7 @@ mod test {
                 let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
                 Ok(stats)
             });
-
-            // Ensure the right user/id pair is inserted into the lookup.
-            let mock_lookup = MockPlayerLookup::default();
-
-            // Setup lookup
-            let data = Arc::new(RwLock::new(TypeMap::default()));
-            {
-                let mut data = data.write().await;
-                data.insert::<SiegeApi>(Arc::new(mock_client));
-                data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(mock_lookup)));
-            }
-            ctx.expect_data().return_const(data);
+            register_client_in_type_map(&mut ctx, mock_client).await;
 
             let mut command = MockDiscordAppCmd::new();
             command
@@ -306,19 +288,9 @@ mod test {
             .expect_get_maps()
             .once()
             .returning(|_| Err(siege_api::auth::ConnectError::InvalidPassword));
+        register_client_in_type_map(&mut ctx, mock_client).await;
 
-        // Ensure the right user/id pair is inserted into the lookup.
-        let mock_lookup = MockPlayerLookup::default();
-
-        // Setup lookup
-        let data = Arc::new(RwLock::new(TypeMap::default()));
-        {
-            let mut data = data.write().await;
-            data.insert::<SiegeApi>(Arc::new(mock_client));
-            data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(mock_lookup)));
-        }
-        ctx.expect_data().return_const(data);
-
+        // Setup command
         let mut command = MockDiscordAppCmd::new();
         command
             .expect_extract_enum_option()
