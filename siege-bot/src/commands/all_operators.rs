@@ -136,7 +136,7 @@ impl CommandHandler for AllOperatorCommand {
     }
 }
 
-fn sort(operators: &mut Vec<&OperatorStatistics>, sorting: Sorting) {
+fn sort(operators: &mut [&OperatorStatistics], sorting: Sorting) {
     match sorting {
         Sorting::Kd => {
             operators.sort_by(|a, b| {

@@ -141,7 +141,7 @@ impl CommandHandler for AllMapsCommand {
     }
 }
 
-fn sort(maps: &mut Vec<&MapStatistics>, sorting: Sorting) {
+fn sort(maps: &mut [&MapStatistics], sorting: Sorting) {
     match sorting {
         Sorting::Kd => {
             maps.sort_by(|a, b| {
