@@ -62,11 +62,12 @@ impl CommandHandler for OperatorCommand {
         let operator = match response.get_operator(operator) {
             Some(operator) => operator,
             None => {
-                ctx.send_text_message(
-                    command,
-                    format!("{user} has not played as {operator}", user = user.tag()).as_str(),
-                )
-                .await?;
+                command
+                    .send_text(
+                        ctx.http(),
+                        format!("{user} has not played as {operator}", user = user.tag()).as_str(),
+                    )
+                    .await?;
 
                 return Ok(());
             }

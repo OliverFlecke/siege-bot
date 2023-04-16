@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
 use serenity::{
@@ -32,13 +32,9 @@ pub trait DiscordAppCmd: Sync + Send {
     /// return the user who invoked the command.
     fn get_user_from_command_or_default(&self) -> User;
 
-    async fn send_text<H>(&self, http: H, text: &str) -> CmdResult
-    where
-        H: AsRef<Http> + 'static + Send + Sync;
+    async fn send_text(&self, http: Option<Arc<Http>>, text: &str) -> CmdResult;
 
-    async fn send_embedded<H>(&self, http: H, embed: CreateEmbed) -> CmdResult
-    where
-        H: AsRef<Http> + 'static + Send + Sync;
+    async fn send_embedded(&self, http: Option<Arc<Http>>, embed: CreateEmbed) -> CmdResult;
 }
 
 /// Implementation for wrapper trait. Is mostly transparent + a utility methods
@@ -76,28 +72,28 @@ impl DiscordAppCmd for ApplicationCommandInteraction {
             .unwrap_or(self.user.clone())
     }
 
-    async fn send_text<H>(&self, http: H, text: &str) -> CmdResult
-    where
-        H: AsRef<Http> + 'static + Send + Sync,
-    {
-        self.create_interaction_response(http.as_ref(), |response| {
-            response
-                .kind(InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|message| message.content(text))
-        })
+    async fn send_text(&self, http: Option<Arc<Http>>, text: &str) -> CmdResult {
+        self.create_interaction_response(
+            http.expect("http should always be set when sending text"),
+            |response| {
+                response
+                    .kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|message| message.content(text))
+            },
+        )
         .await
         .map_err(CommandError::SerenityError)
     }
 
-    async fn send_embedded<H>(&self, http: H, embed: CreateEmbed) -> CmdResult
-    where
-        H: AsRef<Http> + 'static + Send + Sync,
-    {
-        self.create_interaction_response(http, |response| {
-            response
-                .kind(InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|msg| msg.add_embed(embed))
-        })
+    async fn send_embedded(&self, http: Option<Arc<Http>>, embed: CreateEmbed) -> CmdResult {
+        self.create_interaction_response(
+            http.expect("http should always be set when sending embedded"),
+            |response| {
+                response
+                    .kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|msg| msg.add_embed(embed))
+            },
+        )
         .await
         .map_err(CommandError::SerenityError)
     }

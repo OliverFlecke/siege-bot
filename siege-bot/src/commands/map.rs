@@ -60,11 +60,13 @@ impl CommandHandler for MapCommand {
         let map = match response.get_map(map) {
             Some(map) => map,
             None => {
-                ctx.send_text_message(
-                    command,
-                    format!("{user} has not played the '{map:?}' map", user = user.tag()).as_str(),
-                )
-                .await?;
+                command
+                    .send_text(
+                        ctx.http(),
+                        format!("{user} has not played the '{map:?}' map", user = user.tag())
+                            .as_str(),
+                    )
+                    .await?;
 
                 return Ok(());
             }

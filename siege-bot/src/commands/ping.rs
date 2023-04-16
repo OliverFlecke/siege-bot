@@ -20,7 +20,7 @@ impl CommandHandler for PingCommand {
         Ctx: DiscordContext + Send + Sync,
         Cmd: DiscordAppCmd + 'static + Send + Sync,
     {
-        ctx.send_text_message(command, "Hey, I'm alive!").await
+        command.send_text(ctx.http(), "Hey, I'm alive!").await
     }
 }
 
@@ -47,11 +47,13 @@ mod test {
     #[tokio::test]
     async fn validate_run() {
         let mut ctx = MockDiscordContext::new();
-        ctx.expect_send_text_message::<MockDiscordAppCmd>()
+        ctx.expect_http().return_const(None);
+
+        let mut cmd = MockDiscordAppCmd::new();
+        cmd.expect_send_text()
             .once()
             .with(always(), eq("Hey, I'm alive!"))
             .returning(|_, _| Ok(()));
-        let cmd = MockDiscordAppCmd::new();
 
         assert!(PingCommand::run(&ctx, &cmd).await.is_ok());
     }

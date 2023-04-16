@@ -58,8 +58,8 @@ impl CommandHandler for AddPlayerCommand {
                 Ok(id) => id,
                 Err(err) => {
                     tracing::error!("Could not find player with that id. Error: {err:?}");
-                    return ctx
-                        .send_text_message(command, "No player found with that name")
+                    return command
+                        .send_text(ctx.http(), "No player found with that name")
                         .await;
                 }
             }
@@ -72,12 +72,13 @@ impl CommandHandler for AddPlayerCommand {
 
             match lookup.insert(&user.id, ubisoft_id) {
                 Ok(_) => {
-                    ctx.send_text_message(command, "Accounts linked!").await?;
+                    command.send_text(ctx.http(), "Accounts linked!").await?;
+                    // ctx.send_text_message(command, "Accounts linked!").await?;
                 }
                 Err(err) => {
                     tracing::error!("Failed to store user: {err:?}");
-                    return ctx
-                        .send_text_message(command, "Failed to link your accounts")
+                    return command
+                        .send_text(ctx.http(), "Failed to link your accounts")
                         .await;
                 }
             };
@@ -134,10 +135,7 @@ mod test {
 
         // Ensure the expected message is sent back through the command
         let mut ctx = MockDiscordContext::new();
-        ctx.expect_send_text_message::<MockDiscordAppCmd>()
-            .once()
-            .with(always(), eq("Accounts linked!"))
-            .returning(|_, _| Ok(()));
+        ctx.expect_http().return_const(None);
 
         let mut mock_client = create_mock_siege_client();
         mock_client
@@ -172,6 +170,11 @@ mod test {
         command
             .expect_get_user_from_command_or_default()
             .return_once(|| user);
+        command
+            .expect_send_text()
+            .once()
+            .with(always(), eq("Accounts linked!"))
+            .return_once(|_, _| Ok(()));
 
         // Act
         assert!(AddPlayerCommand::run(&ctx, &command).await.is_ok());
@@ -185,10 +188,7 @@ mod test {
 
         // Ensure the expected message is sent back through the command
         let mut ctx = MockDiscordContext::new();
-        ctx.expect_send_text_message::<MockDiscordAppCmd>()
-            .once()
-            .with(always(), eq("Failed to link your accounts"))
-            .returning(|_, _| Ok(()));
+        ctx.expect_http().return_const(None);
 
         let mut mock_client = create_mock_siege_client();
         mock_client
@@ -224,6 +224,13 @@ mod test {
             .expect_get_user_from_command_or_default()
             .return_once(|| user);
 
+        // Assert the right message is set
+        command
+            .expect_send_text()
+            .once()
+            .with(always(), eq("Failed to link your accounts"))
+            .returning(|_, _| Ok(()));
+
         // Act
         assert!(AddPlayerCommand::run(&ctx, &command).await.is_ok());
     }
@@ -235,10 +242,7 @@ mod test {
 
         // Ensure the expected message is sent back through the command
         let mut ctx = MockDiscordContext::new();
-        ctx.expect_send_text_message::<MockDiscordAppCmd>()
-            .once()
-            .with(always(), eq("No player found with that name"))
-            .returning(|_, _| Ok(()));
+        ctx.expect_http().return_const(None);
 
         let mut mock_client = create_mock_siege_client();
         mock_client
@@ -267,6 +271,12 @@ mod test {
         command
             .expect_get_user_from_command_or_default()
             .return_once(|| user);
+        // Assert the right message is sent back
+        command
+            .expect_send_text()
+            .once()
+            .with(always(), eq("No player found with that name"))
+            .returning(|_, _| Ok(()));
 
         // Act
         assert!(AddPlayerCommand::run(&ctx, &command).await.is_ok());
