@@ -2,15 +2,13 @@ use async_trait::async_trait;
 use serenity::{
     builder::CreateApplicationCommand,
     model::prelude::{
-        command::CommandOptionType,
-        interaction::application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+        command::CommandOptionType, interaction::application_command::CommandDataOptionValue,
     },
-    prelude::Context,
 };
 
-use crate::{commands::send_text_message, SiegeApi};
+use crate::SiegeApi;
 
-use super::{get_user_from_command_or_default, CommandError, CommandHandler};
+use super::{command::DiscordAppCmd, context::DiscordContext, CmdResult, CommandHandler};
 
 pub struct AddPlayerCommand;
 
@@ -38,47 +36,42 @@ impl CommandHandler for AddPlayerCommand {
             })
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), CommandError> {
-        let name = if let CommandDataOptionValue::String(value) = command
-            .data
-            .options
-            .iter()
-            .find(|x| x.name == UBISOFT_NAME)
-            .expect("required argument")
-            .resolved
-            .as_ref()
-            .expect("required argument")
-        {
-            value
-        } else {
-            unreachable!()
-        };
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
+        let name =
+            if let Some(CommandDataOptionValue::String(value)) = command.get_option(UBISOFT_NAME) {
+                value
+            } else {
+                unreachable!()
+            };
 
-        let user = get_user_from_command_or_default(command);
+        let user = command.get_user_from_command_or_default();
         tracing::info!(
             "Linking {user} with Ubisoft account {name}",
             user = user.tag()
         );
 
         let ubisoft_id = {
-            let data = ctx.data.read().await;
+            let data = ctx.data().read().await;
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
-            match siege_client.search_for_player(name).await {
+            match siege_client.search_for_player(&name).await {
                 Ok(id) => id,
                 Err(err) => {
                     tracing::error!("Could not find player with that id. Error: {err:?}");
-                    return send_text_message(ctx, command, "No player found with that name").await;
+                    return ctx
+                        .send_text_message(command, "No player found with that name")
+                        .await;
                 }
             }
         };
 
         {
-            let data = ctx.data.write().await;
+            let data = ctx.data().write().await;
             let lookup = data
                 .get::<crate::siege_player_lookup::SiegePlayerLookup>()
                 .expect("always registered");
@@ -86,11 +79,13 @@ impl CommandHandler for AddPlayerCommand {
 
             match lookup.insert(&user.id, ubisoft_id) {
                 Ok(_) => {
-                    send_text_message(ctx, command, "Accounts linked!").await?;
+                    ctx.send_text_message(command, "Accounts linked!").await?;
                 }
                 Err(err) => {
                     tracing::error!("Failed to store user: {err:?}");
-                    return send_text_message(ctx, command, "Failed to link your accounts").await;
+                    return ctx
+                        .send_text_message(command, "Failed to link your accounts")
+                        .await;
                 }
             };
         }

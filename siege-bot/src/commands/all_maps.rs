@@ -1,23 +1,18 @@
 use async_trait::async_trait;
 use serenity::{
-    builder::CreateApplicationCommand,
+    builder::{CreateApplicationCommand, CreateEmbed},
     model::prelude::{
-        command::CommandOptionType,
-        interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-            InteractionResponseType,
-        },
+        command::CommandOptionType, interaction::application_command::CommandDataOptionValue,
     },
-    prelude::Context,
     utils::Color,
 };
 use siege_api::models::{MapStatistics, SideOrAll};
 use strum::IntoEnumIterator;
 
-use crate::{commands::utils::ExtractEnumOption, formatting::FormatEmbedded, SiegeApi};
+use crate::{formatting::FormatEmbedded, SiegeApi};
 
 use super::{
-    get_user_from_command_or_default, lookup_siege_player, AddUserOptionToCommand, CommandError,
+    command::DiscordAppCmd, context::DiscordContext, AddUserOptionToCommand, CmdResult,
     CommandHandler,
 };
 
@@ -76,35 +71,33 @@ impl CommandHandler for AllMapsCommand {
             .add_user_option()
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), CommandError> {
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
         let side = command
             .extract_enum_option::<SideOrAll>(SIDE)
             .expect("required argument");
         let sorting = command.extract_enum_option(SORTING).unwrap_or(Sorting::Kd);
         let minimum_rounds = command
-            .data
-            .options
-            .iter()
-            .find(|x| x.name == MINIMUM_ROUNDS)
-            .and_then(|x| match x.resolved.as_ref() {
-                Some(CommandDataOptionValue::Integer(value)) => Some(*value),
+            .get_option(MINIMUM_ROUNDS)
+            .and_then(|x| match x {
+                CommandDataOptionValue::Integer(value) => Some(value),
                 _ => None,
             })
             .unwrap_or(0);
 
-        let user = get_user_from_command_or_default(command);
+        let user = command.get_user_from_command_or_default();
         tracing::info!(
             "Showing all operators for {user} on {side} side, sorting by {sorting}",
             user = user.name,
         );
 
-        let player_id = lookup_siege_player(ctx, command, user).await?;
+        let player_id = ctx.lookup_siege_player(command, &user).await?;
 
         let response = {
-            let data = ctx.data.read().await;
+            let data = ctx.data().read().await;
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
@@ -121,23 +114,16 @@ impl CommandHandler for AllMapsCommand {
         sort(&mut maps, sorting);
 
         command
-            .create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|msg| {
-                        msg.embed(|embed| {
-                            embed
-                                .thumbnail(user.avatar_url().unwrap_or_default())
-                                .title(format!("{} map statistics for {}", side, user.name))
-                                .color(Color::TEAL)
-                                .format(&maps)
-                        })
-                    })
-            })
+            .send_embedded(
+                ctx.http().clone(),
+                CreateEmbed::default()
+                    .thumbnail(user.avatar_url().unwrap_or_default())
+                    .title(format!("{} map statistics for {}", side, user.name))
+                    .color(Color::TEAL)
+                    .format(&maps)
+                    .to_owned(),
+            )
             .await
-            .map_err(CommandError::SerenityError)?;
-
-        Ok(())
     }
 }
 

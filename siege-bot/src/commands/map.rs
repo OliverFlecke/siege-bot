@@ -1,29 +1,20 @@
 use async_trait::async_trait;
 use serenity::{
-    builder::CreateApplicationCommand,
+    builder::{CreateApplicationCommand, CreateEmbed},
     model::prelude::{
-        command::CommandOptionType,
-        interaction::{
-            application_command::ApplicationCommandInteraction,
-            autocomplete::AutocompleteInteraction, InteractionResponseType,
-        },
+        command::CommandOptionType, interaction::autocomplete::AutocompleteInteraction,
     },
-    prelude::{self, Context},
+    prelude::Context,
     utils::Color,
 };
 use siege_api::maps::Map;
 
-use crate::{
-    commands::{
-        get_user_from_command_or_default, lookup_siege_player, send_text_message,
-        utils::ExtractEnumOption,
-    },
-    constants::NAME,
-    formatting::FormatEmbedded,
-    SiegeApi,
-};
+use crate::{constants::NAME, formatting::FormatEmbedded, SiegeApi};
 
-use super::{AddUserOptionToCommand, CommandError, CommandHandler};
+use super::{
+    command::DiscordAppCmd, context::DiscordContext, AddUserOptionToCommand, CmdResult,
+    CommandError, CommandHandler,
+};
 
 pub struct MapCommand;
 
@@ -44,21 +35,22 @@ impl CommandHandler for MapCommand {
             .add_user_option()
     }
 
-    async fn run(
-        ctx: &prelude::Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), CommandError> {
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
         let map = command
             .extract_enum_option(NAME)
             .expect("required argument");
 
-        let user = get_user_from_command_or_default(command);
-        let player_id = lookup_siege_player(ctx, command, user).await?;
+        let user = command.get_user_from_command_or_default();
+        let player_id = ctx.lookup_siege_player(command, &user).await?;
 
         tracing::info!("Getting statistics for map '{map:?}' for {}", user.name);
 
         let response = {
-            let data = ctx.data.read().await;
+            let data = ctx.data().read().await;
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
@@ -68,8 +60,7 @@ impl CommandHandler for MapCommand {
         let map = match response.get_map(map) {
             Some(map) => map,
             None => {
-                send_text_message(
-                    ctx,
+                ctx.send_text_message(
                     command,
                     format!("{user} has not played the '{map:?}' map", user = user.tag()).as_str(),
                 )
@@ -80,23 +71,16 @@ impl CommandHandler for MapCommand {
         };
 
         command
-            .create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|msg| {
-                        msg.embed(|embed| {
-                            embed
-                                .thumbnail(map.name().image())
-                                .title(format!("Map statistics for {:?}", map.name()))
-                                .color(Color::GOLD)
-                                .format(map.statistics())
-                        })
-                    })
-            })
+            .send_embedded(
+                ctx.http().clone(),
+                CreateEmbed::default()
+                    .thumbnail(map.name().image())
+                    .title(format!("Map statistics for {:?}", map.name()))
+                    .color(Color::GOLD)
+                    .format(map.statistics())
+                    .clone(),
+            )
             .await
-            .map_err(CommandError::SerenityError)?;
-
-        Ok(())
     }
 }
 

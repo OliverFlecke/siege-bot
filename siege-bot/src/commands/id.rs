@@ -2,16 +2,11 @@ use async_trait::async_trait;
 use serenity::{
     builder::CreateApplicationCommand,
     model::prelude::{
-        command::CommandOptionType,
-        interaction::application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+        command::CommandOptionType, interaction::application_command::CommandDataOptionValue,
     },
-    prelude::Context,
 };
 
-use super::{
-    context::{DiscordAppCmd, DiscordContext},
-    CmdResult, CommandHandler,
-};
+use super::{command::DiscordAppCmd, context::DiscordContext, CmdResult, CommandHandler};
 
 pub struct IdCommand;
 
@@ -30,18 +25,10 @@ impl CommandHandler for IdCommand {
             })
     }
 
-    async fn run(
-        _ctx: &Context,
-        _command: &ApplicationCommandInteraction,
-    ) -> Result<(), super::CommandError> {
-        unimplemented!()
-    }
-}
-
-impl IdCommand {
-    pub async fn alternative<C>(ctx: &impl DiscordContext, command: &C) -> CmdResult
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
     where
-        C: DiscordAppCmd + 'static,
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
     {
         let content = match command.get_option("id") {
             Some(CommandDataOptionValue::User(user, _)) => {
@@ -56,13 +43,15 @@ impl IdCommand {
     }
 }
 
+impl IdCommand {}
+
 #[cfg(test)]
 mod test {
     use mockall::predicate::{self, *};
     use serde_json::{json, Value};
     use serenity::model::user::User;
 
-    use crate::commands::context::{MockDiscordAppCmd, MockDiscordContext};
+    use crate::commands::{command::MockDiscordAppCmd, context::MockDiscordContext};
 
     use super::*;
 
@@ -110,7 +99,7 @@ mod test {
             .return_once(move |_| Some(CommandDataOptionValue::User(user.clone(), None)));
 
         // Act and assert
-        assert!(IdCommand::alternative(&ctx, &command).await.is_ok());
+        assert!(IdCommand::run(&ctx, &command).await.is_ok());
     }
 
     #[tokio::test]
@@ -128,6 +117,6 @@ mod test {
             .returning(|_| None);
 
         // Act and assert
-        assert!(IdCommand::alternative(&ctx, &command).await.is_ok());
+        assert!(IdCommand::run(&ctx, &command).await.is_ok());
     }
 }

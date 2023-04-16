@@ -1,27 +1,19 @@
 use async_trait::async_trait;
 use serenity::{
-    builder::CreateApplicationCommand,
+    builder::{CreateApplicationCommand, CreateEmbed},
     model::prelude::{
-        command::CommandOptionType,
-        interaction::{
-            application_command::ApplicationCommandInteraction,
-            autocomplete::AutocompleteInteraction, InteractionResponseType,
-        },
+        command::CommandOptionType, interaction::autocomplete::AutocompleteInteraction,
     },
     prelude::Context,
     utils::Color,
 };
 use siege_api::operator::Operator;
 
-use crate::{
-    commands::{lookup_siege_player, utils::ExtractEnumOption, CommandError},
-    constants::NAME,
-    formatting::FormatEmbedded,
-    SiegeApi,
-};
+use crate::{commands::CommandError, constants::NAME, formatting::FormatEmbedded, SiegeApi};
 
 use super::{
-    get_user_from_command_or_default, send_text_message, AddUserOptionToCommand, CommandHandler,
+    command::DiscordAppCmd, context::DiscordContext, AddUserOptionToCommand, CmdResult,
+    CommandHandler,
 };
 
 pub struct OperatorCommand;
@@ -43,15 +35,16 @@ impl CommandHandler for OperatorCommand {
             .add_user_option()
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), CommandError> {
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
         let operator = command
             .extract_enum_option(NAME)
             .expect("required argument");
-        let user = get_user_from_command_or_default(command);
-        let player_id = lookup_siege_player(ctx, command, user).await?;
+        let user = command.get_user_from_command_or_default();
+        let player_id = ctx.lookup_siege_player(command, &user).await?;
 
         tracing::info!(
             "Getting statistics for operator '{operator}' for {}",
@@ -59,7 +52,7 @@ impl CommandHandler for OperatorCommand {
         );
 
         let response = {
-            let data = ctx.data.read().await;
+            let data = ctx.data().read().await;
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
@@ -69,8 +62,7 @@ impl CommandHandler for OperatorCommand {
         let operator = match response.get_operator(operator) {
             Some(operator) => operator,
             None => {
-                send_text_message(
-                    ctx,
+                ctx.send_text_message(
                     command,
                     format!("{user} has not played as {operator}", user = user.tag()).as_str(),
                 )
@@ -81,23 +73,16 @@ impl CommandHandler for OperatorCommand {
         };
 
         command
-            .create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|msg| {
-                        msg.embed(|embed| {
-                            embed
-                                .thumbnail(operator.name().avatar_url())
-                                .title(format!("Operator statistics for {}", operator.name()))
-                                .color(Color::BLUE)
-                                .format(operator.statistics())
-                        })
-                    })
-            })
+            .send_embedded(
+                ctx.http().clone(),
+                CreateEmbed::default()
+                    .thumbnail(operator.name().avatar_url())
+                    .title(format!("Operator statistics for {}", operator.name()))
+                    .color(Color::BLUE)
+                    .format(operator.statistics())
+                    .clone(),
+            )
             .await
-            .map_err(CommandError::SerenityError)?;
-
-        Ok(())
     }
 }
 

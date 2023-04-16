@@ -1,17 +1,14 @@
 use async_trait::async_trait;
 use serenity::{
-    builder::CreateApplicationCommand,
-    model::prelude::interaction::{
-        application_command::ApplicationCommandInteraction, InteractionResponseType,
-    },
-    prelude::Context,
+    builder::{CreateApplicationCommand, CreateEmbed},
     utils::Color,
 };
 
-use crate::{commands::CommandError, SiegeApi};
+use crate::SiegeApi;
 
 use super::{
-    get_user_from_command_or_default, lookup_siege_player, AddUserOptionToCommand, CommandHandler,
+    command::DiscordAppCmd, context::DiscordContext, AddUserOptionToCommand, CmdResult,
+    CommandHandler,
 };
 
 pub struct StatisticsCommand;
@@ -25,17 +22,18 @@ impl CommandHandler for StatisticsCommand {
             .add_user_option()
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), super::CommandError> {
-        let user = get_user_from_command_or_default(command);
-        let player_id = lookup_siege_player(ctx, command, user).await?;
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
+        let user = command.get_user_from_command_or_default();
+        let player_id = ctx.lookup_siege_player(command, &user).await?;
 
         tracing::info!("Getting statistics for {}", user.name);
 
         let profiles = {
-            let data = ctx.data.read().await;
+            let data = ctx.data().read().await;
             let siege_client = data
                 .get::<SiegeApi>()
                 .expect("Siege client is always registered");
@@ -44,45 +42,39 @@ impl CommandHandler for StatisticsCommand {
 
         let profile: siege_api::models::FullProfile = profiles[0];
 
-        let season = profile.season_statistics();
-        let matches = season.match_outcomes();
+        let season = profile.season_statistics().clone();
+        let matches = season.match_outcomes().clone();
 
         command
-            .create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|msg| {
-                        msg.embed(|e| {
-                            e.title(format!("Statistics for {}", user.name))
-                                .thumbnail(user.avatar_url().unwrap())
-                                .field(
-                                    "Kill/death",
-                                    format!(
-                                        "K/D: **{kd:.2}** - Kills {kills} / Deaths {deaths}",
-                                        kd = season.kd( ),
-                                        kills = season.kills(),
-                                        deaths = season.deaths(),
-                                    ),
-                                    false,
-                                )
-                                .field(
-                                    "Match",
-                                    format!(
-                                        "Matches {total} - **{win_rate:.2} %** - Wins **{wins}** / Losses **{losses}**",
-                                        total = matches.total_matches(),
-                                        wins = matches.wins(),
-                                        losses = matches.losses(),
-                                        win_rate = matches.win_rate() * 100.0,
-                                    ),
-                                    false,
-                                )
-                                .color(Color::DARK_RED)
-                        })
-                    })
-            })
+            .send_embedded(
+                ctx.http().clone(),
+                CreateEmbed::default()
+                    .title(format!("Statistics for {}", user.name))
+                    .thumbnail(user.avatar_url().unwrap())
+                    .field(
+                        "Kill/death",
+                        format!(
+                            "K/D: **{kd:.2}** - Kills {kills} / Deaths {deaths}",
+                            kd = season.kd(),
+                            kills = season.kills(),
+                            deaths = season.deaths(),
+                        ),
+                        false,
+                    )
+                    .field(
+                        "Match",
+                        format!(
+                            "Matches {total} - **{win_rate:.2} %** - Wins **{wins}** / Losses **{losses}**",
+                            total = matches.total_matches(),
+                            wins = matches.wins(),
+                            losses = matches.losses(),
+                            win_rate = matches.win_rate() * 100.0,
+                        ),
+                        false,
+                    )
+                    .color(Color::DARK_RED)
+                    .clone(),
+            )
             .await
-            .map_err(CommandError::SerenityError)?;
-
-        Ok(())
     }
 }

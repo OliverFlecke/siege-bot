@@ -1,11 +1,7 @@
 use async_trait::async_trait;
-use serenity::{
-    builder::CreateApplicationCommand,
-    model::prelude::interaction::application_command::ApplicationCommandInteraction,
-    prelude::Context,
-};
+use serenity::builder::CreateApplicationCommand;
 
-use super::{send_text_message, CommandHandler};
+use super::{command::DiscordAppCmd, context::DiscordContext, CmdResult, CommandHandler};
 
 pub struct PingCommand;
 
@@ -17,10 +13,11 @@ impl CommandHandler for PingCommand {
             .description("A ping command to verify that the bot is alive")
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), super::CommandError> {
-        send_text_message(ctx, command, "Hey, I'm alive!").await
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
+        ctx.send_text_message(command, "Hey, I'm alive!").await
     }
 }

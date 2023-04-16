@@ -82,8 +82,7 @@ impl EventHandler for Handler {
 
                 let result = match command.data.name.as_str() {
                     "ping" => PingCommand::run(&ctx, &command).await,
-                    // "id" => IdCommand::run(&ctx, &command).await,
-                    "id" => IdCommand::alternative(&ctx, &command).await,
+                    "id" => IdCommand::run(&ctx, &command).await,
                     "statistics" => StatisticsCommand::run(&ctx, &command).await,
                     "operator" => OperatorCommand::run(&ctx, &command).await,
                     "map" => MapCommand::run(&ctx, &command).await,

@@ -1,60 +1,37 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use serenity::{
     http::Http,
-    model::prelude::interaction::{
-        application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-        InteractionResponseType,
-    },
-    prelude::Context,
+    model::user::User,
+    prelude::{Context, RwLock, TypeMap},
 };
+use uuid::Uuid;
 
-use super::{CmdResult, CommandError};
+use super::{command::DiscordAppCmd, CmdResult, CommandError};
 
 /// Wrapper for the `serenity::Context` for mocking.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait DiscordContext {
+    /// Send a simple text message through the context.
     async fn send_text_message<C>(&self, command: &C, content: &str) -> CmdResult
     where
         C: DiscordAppCmd + 'static;
-}
 
-/// Wrapper for a `ApplicationCommandInteraction`.
-#[cfg_attr(test, mockall::automock)]
-#[async_trait]
-pub trait DiscordAppCmd: Sync + Send {
-    fn get_option(&self, name: &str) -> Option<CommandDataOptionValue>;
+    /// Access the internal data store for the service.
+    fn data(&self) -> &Arc<RwLock<TypeMap>>;
 
-    async fn send_text<H>(&self, http: H, text: &str) -> CmdResult
+    fn http(&self) -> &Arc<Http>;
+
+    /// Find a Siege player based on the user.
+    async fn lookup_siege_player<Cmd>(
+        &self,
+        command: &Cmd,
+        user: &User,
+    ) -> Result<Uuid, CommandError>
     where
-        H: AsRef<Http> + 'static + Send + Sync;
-}
-
-/// Implementation for wrapper trait. Is mostly transparent + a utility methods
-/// to extract data.
-#[async_trait]
-impl DiscordAppCmd for ApplicationCommandInteraction {
-    fn get_option(&self, name: &str) -> Option<CommandDataOptionValue> {
-        self.data
-            .options
-            .iter()
-            .find(|x| x.name == name)
-            .and_then(|x| x.resolved.as_ref())
-            .cloned()
-    }
-
-    async fn send_text<H>(&self, http: H, text: &str) -> CmdResult
-    where
-        H: AsRef<Http> + 'static + Send + Sync,
-    {
-        self.create_interaction_response(http.as_ref(), |response| {
-            response
-                .kind(InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|message| message.content(text))
-        })
-        .await
-        .map_err(CommandError::SerenityError)
-    }
+        Cmd: DiscordAppCmd + 'static;
 }
 
 /// Implementation for wrapper trait.
@@ -65,5 +42,43 @@ impl DiscordContext for Context {
         C: DiscordAppCmd,
     {
         command.send_text(self.http.clone(), content).await
+    }
+
+    fn data(&self) -> &Arc<RwLock<TypeMap>> {
+        &self.data
+    }
+
+    fn http(&self) -> &Arc<Http> {
+        &self.http
+    }
+
+    async fn lookup_siege_player<Cmd>(
+        &self,
+        command: &Cmd,
+        user: &User,
+    ) -> Result<Uuid, CommandError>
+    where
+        Cmd: DiscordAppCmd + 'static,
+    {
+        let data = self.data().read().await;
+        let lookup = data
+            .get::<crate::siege_player_lookup::SiegePlayerLookup>()
+            .expect("always registered");
+        let lookup = lookup.read().await;
+
+        match lookup.get(&user.id) {
+            Some(player_id) => Ok(*player_id),
+            None => {
+                self.send_text_message(
+                    command,
+                    format!(
+                        "No Siege player found for {}.\nUse the `/add` command to link your Discord profile to your Ubisoft name",
+                        user.tag()
+                    ).as_str(),
+                )
+                .await?;
+                Err(CommandError::SiegePlayerNotFound)
+            }
+        }
     }
 }
