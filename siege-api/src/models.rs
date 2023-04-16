@@ -110,6 +110,24 @@ pub struct Playtime {
     last_modified: DateTime<Utc>,
 }
 
+// Helper structs to extract the unnecessary nesting from the API.
+#[derive(Debug, Deserialize, Getters)]
+pub struct RankedV2Response {
+    platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
+}
+#[derive(Debug, Deserialize, Getters)]
+pub struct PlatformFamiliesFullProfile {
+    #[allow(dead_code)]
+    platform_family: PlatformFamily,
+    board_ids_full_profiles: Vec<Board>,
+}
+#[derive(Debug, Deserialize, Getters)]
+pub struct Board {
+    #[allow(dead_code)]
+    board_id: PlayType,
+    full_profiles: Vec<FullProfile>,
+}
+
 /// The full profile returned from the Ranked V2 API. This, together with its
 /// nested fields, contains the high level data for each season.
 #[derive(Debug, Deserialize, Getters, Clone, Copy)]

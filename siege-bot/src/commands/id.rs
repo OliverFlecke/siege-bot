@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use serenity::{
     builder::CreateApplicationCommand,
     model::prelude::{
-        command::CommandOptionType,
-        interaction::application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+        command::CommandOptionType, interaction::application_command::CommandDataOptionValue,
     },
-    prelude::Context,
 };
 
-use super::{send_text_message, CommandHandler};
+use super::{
+    context::DiscordContext, discord_app_command::DiscordAppCmd, CmdResult, CommandHandler,
+};
 
 pub struct IdCommand;
 
@@ -27,27 +27,96 @@ impl CommandHandler for IdCommand {
             })
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), super::CommandError> {
-        let option = command
-            .data
-            .options
-            .get(0)
-            .expect("Expected user option")
-            .resolved
-            .as_ref()
-            .expect("Expected user object");
-
-        let content = if let CommandDataOptionValue::User(user, _member) = option {
-            format!("{}'s id is {}", user.tag(), user.id)
-        } else {
-            "Please provide a valid user".to_string()
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
+        let content = match command.get_option("id") {
+            Some(CommandDataOptionValue::User(user, _)) => {
+                format!("{}'s id is {}", user.tag(), user.id)
+            }
+            _ => "Please provide a valid user".to_string(),
         };
 
-        send_text_message(ctx, command, content.as_str()).await?;
+        command.send_text(ctx.http(), content.as_str()).await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use mockall::predicate::{self, *};
+    use serde_json::{json, Value};
+    use serenity::model::user::User;
+
+    use crate::commands::{context::MockDiscordContext, discord_app_command::MockDiscordAppCmd};
+
+    use super::*;
+
+    #[test]
+    fn validate_register() {
+        let mut command = CreateApplicationCommand::default();
+        let command = IdCommand::register(&mut command);
+
+        assert_eq!(command.0.get("name").unwrap(), "id");
+        assert_eq!(command.0.get("description").unwrap(), "Get a user id");
+
+        let option = command
+            .0
+            .get("options")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .as_object()
+            .unwrap();
+
+        assert_eq!(option.get("description").unwrap(), "The user to lookup");
+        assert_eq!(option.get("name").unwrap(), "id");
+        assert_eq!(*option.get("required").unwrap(), Value::Bool(true));
+        assert_eq!(*option.get("type").unwrap(), json!(6));
+    }
+
+    #[tokio::test]
+    async fn validate_run() {
+        let user = User::default();
+        let mut ctx = MockDiscordContext::new();
+        ctx.expect_http().return_const(None);
+
+        let mut command = MockDiscordAppCmd::new();
+        command
+            .expect_send_text()
+            .once()
+            .with(always(), eq(format!("{}'s id is {}", user.tag(), user.id)))
+            .returning(|_, _| Ok(()));
+        command
+            .expect_get_option()
+            .with(eq("id"))
+            .return_once(move |_| Some(CommandDataOptionValue::User(user.clone(), None)));
+
+        // Act and assert
+        assert!(IdCommand::run(&ctx, &command).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn validate_run_with_missing_user() {
+        let mut ctx = MockDiscordContext::new();
+        ctx.expect_http().return_const(None);
+        let mut command = MockDiscordAppCmd::new();
+        command
+            .expect_get_option()
+            .with(eq("id"))
+            .returning(|_| None);
+        command
+            .expect_send_text()
+            .once()
+            .with(predicate::always(), eq("Please provide a valid user"))
+            .returning(|_, _| Ok(()));
+
+        // Act and assert
+        assert!(IdCommand::run(&ctx, &command).await.is_ok());
     }
 }

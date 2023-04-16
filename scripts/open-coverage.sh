@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-open ./target/coverage/html/html/index.html
+open ./target/coverage/html/index.html

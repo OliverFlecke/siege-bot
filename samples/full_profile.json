@@ -1,0 +1,101 @@
+{
+	"platform_families_full_profiles": [
+		{
+			"board_ids_full_profiles": [
+				{
+					"board_id": "casual",
+					"full_profiles": [
+						{
+							"profile": {
+								"board_id": "casual",
+								"id": "e7679633-31ff-4f44-8cfd-d0ff81e2c10a",
+								"max_rank": 0,
+								"max_rank_points": 0,
+								"platform_family": "pc",
+								"rank": 0,
+								"rank_points": 0,
+								"season_id": 29,
+								"top_rank_position": 0
+							},
+							"season_statistics": {
+								"deaths": 485,
+								"kills": 752,
+								"match_outcomes": { "abandons": 0, "losses": 108, "wins": 83 }
+							}
+						}
+					]
+				},
+				{
+					"board_id": "event",
+					"full_profiles": [
+						{
+							"profile": {
+								"board_id": "event",
+								"id": "e7679633-31ff-4f44-8cfd-d0ff81e2c10a",
+								"max_rank": 0,
+								"max_rank_points": 0,
+								"platform_family": "pc",
+								"rank": 0,
+								"rank_points": 0,
+								"season_id": 29,
+								"top_rank_position": 0
+							},
+							"season_statistics": {
+								"deaths": 88,
+								"kills": 113,
+								"match_outcomes": { "abandons": 0, "losses": 3, "wins": 4 }
+							}
+						}
+					]
+				},
+				{
+					"board_id": "warmup",
+					"full_profiles": [
+						{
+							"profile": {
+								"board_id": "warmup",
+								"id": "e7679633-31ff-4f44-8cfd-d0ff81e2c10a",
+								"max_rank": 0,
+								"max_rank_points": 0,
+								"platform_family": "pc",
+								"rank": 0,
+								"rank_points": 0,
+								"season_id": 29,
+								"top_rank_position": 0
+							},
+							"season_statistics": {
+								"deaths": 0,
+								"kills": 0,
+								"match_outcomes": { "abandons": 0, "losses": 0, "wins": 0 }
+							}
+						}
+					]
+				},
+				{
+					"board_id": "ranked",
+					"full_profiles": [
+						{
+							"profile": {
+								"board_id": "ranked",
+								"id": "e7679633-31ff-4f44-8cfd-d0ff81e2c10a",
+								"max_rank": 4,
+								"max_rank_points": 1302,
+								"platform_family": "pc",
+								"rank": 4,
+								"rank_points": 1300,
+								"season_id": 29,
+								"top_rank_position": 0
+							},
+							"season_statistics": {
+								"deaths": 13,
+								"kills": 23,
+								"match_outcomes": { "abandons": 1, "losses": 1, "wins": 3 }
+							}
+						}
+					]
+				}
+			],
+			"platform_family": "pc"
+		}
+	]
+}

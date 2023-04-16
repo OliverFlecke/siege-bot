@@ -21,7 +21,7 @@ impl FormatEmbedded<'_, Vec<&MapStatistics>> for CreateEmbed {
             .map(|x| {
                 format!(
                     "`{:.2} %` (of `{}`)",
-                    x.statistics().rounds_win_rate(),
+                    100.0 * x.statistics().rounds_win_rate(),
                     x.statistics().rounds_played()
                 )
             })
@@ -32,5 +32,41 @@ impl FormatEmbedded<'_, Vec<&MapStatistics>> for CreateEmbed {
         self.field("Rounds", rounds, true);
 
         self
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::ops::Sub;
+
+    use chrono::{DateTime, Utc};
+    use siege_api::models::{SideOrAll, StatisticResponse};
+
+    use super::*;
+
+    #[test]
+    fn format_validate() {
+        let mut embed = CreateEmbed::default();
+        let content = std::fs::read_to_string("../samples/maps.json").unwrap();
+        let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
+        let maps = stats.get_maps(SideOrAll::All);
+
+        embed.format(&maps);
+
+        assert!(
+            embed
+                .0
+                .get("timestamp")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+                .sub(Utc::now())
+                .num_seconds()
+                < 1
+        );
+
+        println!("{embed:?}");
     }
 }

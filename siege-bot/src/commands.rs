@@ -1,24 +1,14 @@
 use async_trait::async_trait;
-use serenity::{
-    builder::CreateApplicationCommand,
-    model::{
-        prelude::{
-            command::CommandOptionType,
-            interaction::{
-                application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-                InteractionResponseType,
-            },
-        },
-        user::User,
-    },
-    prelude::Context,
-};
+use serenity::{builder::CreateApplicationCommand, model::prelude::command::CommandOptionType};
 use thiserror::Error;
-use uuid::Uuid;
+
+use self::{context::DiscordContext, discord_app_command::DiscordAppCmd};
 
 pub mod add_player;
 pub mod all_maps;
 pub mod all_operators;
+pub mod context;
+pub mod discord_app_command;
 pub mod id;
 pub mod map;
 pub mod operator;
@@ -29,10 +19,10 @@ pub mod statistics;
 pub trait CommandHandler {
     fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand;
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), CommandError>;
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync;
 }
 
 #[derive(Debug, Error)]
@@ -45,68 +35,7 @@ pub enum CommandError {
     SiegePlayerNotFound,
 }
 
-/// Utility method to send text back to the channel.
-async fn send_text_message(
-    ctx: &Context,
-    command: &ApplicationCommandInteraction,
-    content: &str,
-) -> Result<(), CommandError> {
-    command
-        .create_interaction_response(&ctx.http, |response| {
-            response
-                .kind(InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|message| message.content(content))
-        })
-        .await
-        .map_err(CommandError::SerenityError)
-}
-
-/// Extract the user argument from the command, or if not provide, return the user who invoked the command.
-fn get_user_from_command_or_default(command: &ApplicationCommandInteraction) -> &User {
-    command
-        .data
-        .options
-        .iter()
-        .filter(|x| x.name == "user")
-        .last()
-        .and_then(|x| match x.resolved.as_ref() {
-            Some(CommandDataOptionValue::User(user, _)) => Some(user),
-            _ => None,
-        })
-        .unwrap_or(&command.user)
-}
-
-/// Retreive the Siege Id for a Discord user. If it is not found, an error is sent back through the command
-/// and an error is returned.
-async fn lookup_siege_player(
-    ctx: &Context,
-    command: &ApplicationCommandInteraction,
-    user: &User,
-) -> Result<Uuid, CommandError> {
-    let data = ctx.data.read().await;
-    let lookup = data
-        .get::<crate::siege_player_lookup::SiegePlayerLookup>()
-        .expect("always registered");
-    let lookup = lookup.read().await;
-
-    match lookup.get(&user.id) {
-        Some(player_id) => Ok(*player_id),
-        None => {
-            send_text_message(
-                ctx,
-                command,
-                format!(
-                    "No Siege player found for {}.\nUse the `/add` command to link your Discord profile to your Ubisoft name",
-                    user.tag()
-                ).as_str(),
-            )
-            .await?;
-            Err(CommandError::SiegePlayerNotFound)
-        }
-    }
-}
-
-// TODO: Should these traits/functions be moved to a utils module?
+pub type CmdResult = core::result::Result<(), CommandError>;
 
 trait AddUserOptionToCommand {
     fn add_user_option(&mut self) -> &mut Self;
@@ -124,36 +53,52 @@ impl AddUserOptionToCommand for CreateApplicationCommand {
     }
 }
 
-mod utils {
-    use std::str::FromStr;
+#[cfg(test)]
+pub(crate) mod test {
+    use std::sync::Arc;
 
-    use serenity::model::prelude::interaction::application_command::{
-        ApplicationCommandInteraction, CommandDataOptionValue,
-    };
+    use async_trait::async_trait;
+    use serenity::prelude::{RwLock, TypeMap};
+    use siege_api::models::{FullProfile, PlaytimeProfile, StatisticResponse};
+    use uuid::Uuid;
 
-    pub trait ExtractEnumOption {
-        fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
-        where
-            T: FromStr;
+    use crate::SiegeApi;
+
+    use super::context::MockDiscordContext;
+
+    mockall::mock! {
+        pub SiegeClient {}
+
+        #[allow(implied_bounds_entailment)]
+        #[async_trait]
+        impl siege_api::client::SiegeClient for SiegeClient {
+            async fn search_for_player(&self, name: &str) -> siege_api::client::Result<Uuid>;
+            async fn get_playtime(&self, player_id: Uuid) -> siege_api::client::Result<PlaytimeProfile>;
+            async fn get_full_profiles(&self, player_id: Uuid) -> siege_api::client::Result<Vec<FullProfile>>;
+            async fn get_operators(&self, player_id: Uuid) -> siege_api::client::Result<StatisticResponse>;
+            async fn get_maps(&self, player_id: Uuid) -> siege_api::client::Result<StatisticResponse>;
+        }
     }
 
-    impl ExtractEnumOption for &ApplicationCommandInteraction {
-        fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
-        where
-            T: FromStr,
+    // rust-analyzer is throwing an error here, but this still compiles fine.
+    // Looks like its an issue with importing these mocks from an external crate.
+    // I have not found a way to ignore this error yet, but have instead created a
+    // central function to create this mock.
+    // use siege_api::client::MockSiegeClient;
+
+    pub fn create_mock_siege_client() -> MockSiegeClient {
+        MockSiegeClient::new()
+    }
+
+    pub async fn register_client_in_type_map(
+        ctx: &mut MockDiscordContext,
+        client: MockSiegeClient,
+    ) {
+        let data = Arc::new(RwLock::new(TypeMap::default()));
         {
-            self.data
-                .options
-                .iter()
-                .find(|x| x.name == option_name)
-                .and_then(|x| x.resolved.as_ref())
-                .and_then(|x| {
-                    if let CommandDataOptionValue::String(value) = x {
-                        value.parse::<T>().ok()
-                    } else {
-                        None
-                    }
-                })
+            let mut data = data.write().await;
+            data.insert::<SiegeApi>(Arc::new(client));
         }
+        ctx.expect_data().return_const(data);
     }
 }

@@ -1,11 +1,9 @@
 use async_trait::async_trait;
-use serenity::{
-    builder::CreateApplicationCommand,
-    model::prelude::interaction::application_command::ApplicationCommandInteraction,
-    prelude::Context,
-};
+use serenity::builder::CreateApplicationCommand;
 
-use super::{send_text_message, CommandHandler};
+use super::{
+    context::DiscordContext, discord_app_command::DiscordAppCmd, CmdResult, CommandHandler,
+};
 
 pub struct PingCommand;
 
@@ -17,10 +15,46 @@ impl CommandHandler for PingCommand {
             .description("A ping command to verify that the bot is alive")
     }
 
-    async fn run(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> Result<(), super::CommandError> {
-        send_text_message(ctx, command, "Hey, I'm alive!").await
+    async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAppCmd + 'static + Send + Sync,
+    {
+        command.send_text(ctx.http(), "Hey, I'm alive!").await
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use mockall::predicate::*;
+
+    use crate::commands::{context::MockDiscordContext, discord_app_command::MockDiscordAppCmd};
+
+    use super::*;
+
+    #[test]
+    fn validate_register() {
+        let mut command = CreateApplicationCommand::default();
+        let command = PingCommand::register(&mut command);
+
+        assert_eq!(command.0.get("name").unwrap(), "ping");
+        assert_eq!(
+            command.0.get("description").unwrap(),
+            "A ping command to verify that the bot is alive"
+        );
+    }
+
+    #[tokio::test]
+    async fn validate_run() {
+        let mut ctx = MockDiscordContext::new();
+        ctx.expect_http().return_const(None);
+
+        let mut cmd = MockDiscordAppCmd::new();
+        cmd.expect_send_text()
+            .once()
+            .with(always(), eq("Hey, I'm alive!"))
+            .returning(|_, _| Ok(()));
+
+        assert!(PingCommand::run(&ctx, &cmd).await.is_ok());
     }
 }

@@ -11,18 +11,36 @@ use serenity::{
 use uuid::Uuid;
 
 pub struct SiegePlayerLookup;
-
 impl TypeMapKey for SiegePlayerLookup {
-    type Value = Arc<RwLock<PlayerLookup>>;
+    type Value = Arc<RwLock<dyn PlayerLookup>>;
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait PlayerLookup: Send + Sync {
+    fn get<'a>(&'a self, id: &UserId) -> Option<&'a Uuid>;
+    fn insert(&mut self, id: &UserId, siege_id: Uuid) -> Result<(), std::io::Error>;
 }
 
 #[derive(Debug)]
-pub struct PlayerLookup {
+pub struct PlayerLookupImpl {
     filename: String,
     users: HashMap<UserId, Uuid>,
 }
 
-impl PlayerLookup {
+impl PlayerLookup for PlayerLookupImpl {
+    /// Get the Ubisoft ID for a Siege player from their Discord ID.
+    fn get<'a>(&'a self, id: &UserId) -> Option<&'a Uuid> {
+        self.users.get(id)
+    }
+
+    /// Insert a Discord user's Ubisoft ID for later lookup.
+    fn insert(&mut self, id: &UserId, siege_id: Uuid) -> Result<(), std::io::Error> {
+        self.users.insert(*id, siege_id);
+        self.persist()
+    }
+}
+
+impl PlayerLookupImpl {
     pub fn load(filename: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let users = match read_to_string(filename)
             .or_else(|_| read_to_string(format!("/config/{filename}")))
@@ -40,17 +58,6 @@ impl PlayerLookup {
         })
     }
 
-    /// Get the Ubisoft ID for a Siege player from their Discord ID.
-    pub fn get(&self, id: &UserId) -> Option<&Uuid> {
-        self.users.get(id)
-    }
-
-    /// Insert a Discord user's Ubisoft ID for later lookup.
-    pub fn insert(&mut self, id: &UserId, siege_id: Uuid) -> Result<(), std::io::Error> {
-        self.users.insert(*id, siege_id);
-        self.persist()
-    }
-
     fn persist(&self) -> Result<(), std::io::Error> {
         let content =
             serde_json::to_string_pretty(&self.users).expect("should always be serializeable");
@@ -66,7 +73,7 @@ mod test {
 
     #[test]
     fn load_from_disk_without_existing_file() {
-        assert!(PlayerLookup::load("not existing file").is_ok());
+        assert!(PlayerLookupImpl::load("not existing file").is_ok());
     }
 
     #[test]
@@ -83,14 +90,14 @@ mod test {
         // This is just to have some valid content that serde can parse.
         use std::io::Write;
         writeln!(file, "{{}}").unwrap();
-        let mut lookup = PlayerLookup::load(filename.as_str()).unwrap();
+        let mut lookup = PlayerLookupImpl::load(filename.as_str()).unwrap();
 
         lookup
             .insert(&discord_id, siege_id)
             .expect("should be able to persist");
 
         // Act - Load from the exsiting file
-        let lookup = PlayerLookup::load(filename.as_str()).unwrap();
+        let lookup = PlayerLookupImpl::load(filename.as_str()).unwrap();
 
         // Assert
         assert_eq!(*lookup.get(&discord_id).unwrap(), siege_id);
@@ -103,7 +110,7 @@ mod test {
         let siege_id =
             Uuid::parse_str("68830784-0ff1-43c7-bbac-90c1e537d1cc").expect("this is a valid guid");
         let discord_id = UserId::from(1290213);
-        let mut lookup = PlayerLookup::load("temp").unwrap();
+        let mut lookup = PlayerLookupImpl::load("temp").unwrap();
 
         // Act - add
         lookup
@@ -118,14 +125,14 @@ mod test {
 
     #[test]
     fn debug() {
-        let lookup = PlayerLookup {
+        let lookup = PlayerLookupImpl {
             filename: "some name".to_string(),
             users: HashMap::default(),
         };
 
         assert_eq!(
             format!("{lookup:?}"),
-            "PlayerLookup { filename: \"some name\", users: {} }"
+            "PlayerLookupImpl { filename: \"some name\", users: {} }"
         );
     }
 }
