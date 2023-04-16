@@ -120,3 +120,39 @@ impl MapCommand {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use serde_json::Value;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn validate_register() {
+        let mut command = CreateApplicationCommand::default();
+        let command = MapCommand::register(&mut command);
+
+        // Assert
+        assert_eq!(command.0.get("name").unwrap(), "map");
+        assert!(!command
+            .0
+            .get("description")
+            .and_then(|x| x.as_str())
+            .unwrap()
+            .is_empty());
+
+        let options = command.0.get("options").unwrap().as_array().unwrap();
+        // Assert first options
+        let opt = options.get(0).unwrap();
+        assert_eq!(opt.get("name").unwrap(), NAME);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(true));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::User`
+        assert_eq!(*opt.get("autocomplete").unwrap(), Value::Bool(true));
+
+        let opt = options.get(1).unwrap();
+        assert_eq!(opt.get("name").unwrap(), "user");
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::User`
+        assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+    }
+}

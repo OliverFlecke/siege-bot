@@ -146,3 +146,48 @@ fn sort(operators: &mut [&OperatorStatistics], sorting: Sorting) {
         }),
     };
 }
+
+#[cfg(test)]
+mod test {
+    use serde_json::Value;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn validate_register() {
+        let mut command = CreateApplicationCommand::default();
+        let command = AllOperatorCommand::register(&mut command);
+
+        // Assert
+        assert_eq!(command.0.get("name").unwrap(), "all_operators");
+        assert!(!command
+            .0
+            .get("description")
+            .and_then(|x| x.as_str())
+            .unwrap()
+            .is_empty());
+
+        let options = command.0.get("options").unwrap().as_array().unwrap();
+        // Assert first options
+        let opt = options.get(0).unwrap();
+        assert_eq!(opt.get("name").unwrap(), SIDE);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(true));
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 2);
+
+        let opt = options.get(1).unwrap();
+        assert_eq!(opt.get("name").unwrap(), SORTING);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 3);
+
+        let opt = options.get(2).unwrap();
+        assert_eq!(opt.get("name").unwrap(), MINIMUM_ROUNDS);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 4); // Corresponds to `CommandOptionType::Integer`
+
+        let opt = options.get(3).unwrap();
+        assert_eq!(opt.get("name").unwrap(), "user");
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::Integer`
+        assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+    }
+}
