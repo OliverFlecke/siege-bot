@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use chrono::{Months, NaiveDate, Utc};
 use reqwest::{RequestBuilder, Url};
 use serde::Deserialize;
@@ -10,6 +11,22 @@ use crate::models::{
     FullProfile, PlatformType, PlayerProfile, PlaytimeProfile, PlaytimeResponse, RankedV2Response,
     StatisticResponse,
 };
+
+pub type Result<T> = core::result::Result<T, ConnectError>;
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
+pub trait SiegeClient: Sync + Send {
+    async fn search_for_player(&self, name: &str) -> Result<Uuid>;
+
+    async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile>;
+
+    async fn get_full_profiles(&self, player_id: Uuid) -> Result<Vec<FullProfile>>;
+
+    async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse>;
+
+    async fn get_maps(&self, player_id: Uuid) -> Result<StatisticResponse>;
+}
 
 #[derive(Debug)]
 pub struct Client {
@@ -26,9 +43,10 @@ impl From<ConnectResponse> for Client {
     }
 }
 
-impl Client {
+#[async_trait]
+impl SiegeClient for Client {
     /// Search for a Ubisoft player ID.
-    pub async fn search_for_player(&self, name: &str) -> Result<Uuid, ConnectError> {
+    async fn search_for_player(&self, name: &str) -> Result<Uuid> {
         #[derive(Deserialize)]
         struct Response {
             profiles: Vec<PlayerProfile>,
@@ -54,7 +72,7 @@ impl Client {
 
     /// Get the playtime for the given player.
     /// See the `PlaytimeProfile` structs for the fields it contains.
-    pub async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile, ConnectError> {
+    async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile> {
         let url = Url::parse_with_params(
             format!("{UBI_SERVICES_URL}/v1/profiles/stats").as_str(),
             &[
@@ -80,10 +98,7 @@ impl Client {
     /// Get full Siege profiles from the API. This will only contain the latest
     /// statistics from the current season. It does *not* look like it is possible
     /// to query earlier seasons at the moment.
-    pub async fn get_full_profiles(
-        &self,
-        player_id: Uuid,
-    ) -> Result<Vec<FullProfile>, ConnectError> {
+    async fn get_full_profiles(&self, player_id: Uuid) -> Result<Vec<FullProfile>> {
         let url = Url::parse_with_params(
             format!(
                 "{UBI_SERVICES_URL}/v2/spaces/{DEFAULT_SPACE_ID}/title/r6s/skill/full_profiles"
@@ -111,7 +126,7 @@ impl Client {
     }
 
     /// Retreive statistics about operators for a given player.
-    pub async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
+    async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse> {
         let url = create_summary_query(player_id, AggregationType::Operators);
         let response = self.get(url).await?;
         response
@@ -121,7 +136,7 @@ impl Client {
     }
 
     /// Get maps statistics for a given player.
-    pub async fn get_maps(&self, player_id: Uuid) -> Result<StatisticResponse, ConnectError> {
+    async fn get_maps(&self, player_id: Uuid) -> Result<StatisticResponse> {
         let url = create_summary_query(player_id, AggregationType::Maps);
         let response = self.get(url).await?;
 
@@ -130,8 +145,10 @@ impl Client {
             ConnectError::UnexpectedResponse
         })
     }
+}
 
-    async fn get(&self, url: Url) -> Result<reqwest::Response, ConnectError> {
+impl Client {
+    async fn get(&self, url: Url) -> Result<reqwest::Response> {
         if self.auth.read().await.is_expired() {
             self.refresh_auth().await?;
         }
@@ -145,7 +162,7 @@ impl Client {
     }
 
     /// Refresh the authentication session to Ubisoft's API.
-    async fn refresh_auth(&self) -> Result<(), ConnectError> {
+    async fn refresh_auth(&self) -> Result<()> {
         tracing::info!("Refreshing auth token for client");
         // TODO: Would prefer not reading this from the environment again.
         // They could be set in another way in the future.

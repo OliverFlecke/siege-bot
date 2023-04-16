@@ -25,7 +25,7 @@ use crate::{
         map::MapCommand, operator::OperatorCommand, ping::PingCommand,
         statistics::StatisticsCommand, CommandError,
     },
-    siege_player_lookup::{PlayerLookup, SiegePlayerLookup},
+    siege_player_lookup::{PlayerLookupImpl, SiegePlayerLookup},
 };
 
 struct Handler;
@@ -121,7 +121,7 @@ impl EventHandler for Handler {
 struct SiegeApi;
 
 impl TypeMapKey for SiegeApi {
-    type Value = siege_api::client::Client;
+    type Value = Arc<dyn siege_api::client::SiegeClient>;
 }
 
 #[tokio::main]
@@ -154,10 +154,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let siege_client: siege_api::client::Client =
             Auth::from_environment().connect().await.unwrap().into();
         let mut data = client.data.write().await;
-        data.insert::<SiegeApi>(siege_client);
+        data.insert::<SiegeApi>(Arc::new(siege_client));
     }
     {
-        let lookup = PlayerLookup::load(".players.json")?;
+        let lookup = PlayerLookupImpl::load(".players.json")?;
         let mut data = client.data.write().await;
         data.insert::<SiegePlayerLookup>(Arc::new(RwLock::new(lookup)));
     }

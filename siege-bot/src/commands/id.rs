@@ -86,10 +86,7 @@ mod test {
         let mut ctx = MockDiscordContext::new();
         ctx.expect_send_text_message::<MockDiscordAppCmd>()
             .once()
-            .with(
-                predicate::always(),
-                eq(format!("{}'s id is {}", user.tag(), user.id)),
-            )
+            .with(always(), eq(format!("{}'s id is {}", user.tag(), user.id)))
             .returning(|_, _| Ok(()));
 
         let mut command = MockDiscordAppCmd::new();

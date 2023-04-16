@@ -13,7 +13,7 @@ use super::{discord_app_command::DiscordAppCmd, CmdResult, CommandError};
 /// Wrapper for the `serenity::Context` for mocking.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub trait DiscordContext {
+pub trait DiscordContext: Sync + Send {
     /// Send a simple text message through the context.
     async fn send_text_message<C>(&self, command: &C, content: &str) -> CmdResult
     where
