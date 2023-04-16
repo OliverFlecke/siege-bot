@@ -51,3 +51,35 @@ impl CommandHandler for IdCommand {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use serde_json::{json, Value};
+
+    use super::*;
+
+    #[test]
+    fn validate_register() {
+        let mut command = CreateApplicationCommand::default();
+        let command = IdCommand::register(&mut command);
+
+        assert_eq!(command.0.get("name").unwrap(), "id");
+        assert_eq!(command.0.get("description").unwrap(), "Get a user id");
+
+        let option = command
+            .0
+            .get("options")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .as_object()
+            .unwrap();
+
+        assert_eq!(option.get("description").unwrap(), "The user to lookup");
+        assert_eq!(option.get("name").unwrap(), "id");
+        assert_eq!(*option.get("required").unwrap(), Value::Bool(true));
+        assert_eq!(*option.get("type").unwrap(), json!(6));
+    }
+}
