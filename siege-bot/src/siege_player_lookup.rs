@@ -11,7 +11,6 @@ use serenity::{
 use uuid::Uuid;
 
 pub struct SiegePlayerLookup;
-
 impl TypeMapKey for SiegePlayerLookup {
     type Value = Arc<RwLock<dyn PlayerLookup>>;
 }
