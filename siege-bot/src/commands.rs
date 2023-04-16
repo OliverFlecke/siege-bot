@@ -19,6 +19,7 @@ use uuid::Uuid;
 pub mod add_player;
 pub mod all_maps;
 pub mod all_operators;
+pub mod context;
 pub mod id;
 pub mod map;
 pub mod operator;
@@ -44,6 +45,8 @@ pub enum CommandError {
     #[error("Siege player not found")]
     SiegePlayerNotFound,
 }
+
+pub type CmdResult = core::result::Result<(), CommandError>;
 
 /// Utility method to send text back to the channel.
 async fn send_text_message(
