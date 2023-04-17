@@ -70,7 +70,7 @@ pub(crate) mod test {
 
     use async_trait::async_trait;
     use serenity::prelude::{RwLock, TypeMap};
-    use siege_api::models::{FullProfile, PlaytimeProfile, StatisticResponse};
+    use siege_api::models::{meta::GameStatus, FullProfile, PlaytimeProfile, StatisticResponse};
     use uuid::Uuid;
 
     use crate::SiegeApi;
@@ -88,6 +88,7 @@ pub(crate) mod test {
             async fn get_full_profiles(&self, player_id: Uuid) -> siege_api::client::Result<Vec<FullProfile>>;
             async fn get_operators(&self, player_id: Uuid) -> siege_api::client::Result<StatisticResponse>;
             async fn get_maps(&self, player_id: Uuid) -> siege_api::client::Result<StatisticResponse>;
+            async fn siege_status(&self) -> siege_api::client::Result<Vec<GameStatus>>;
         }
     }
 

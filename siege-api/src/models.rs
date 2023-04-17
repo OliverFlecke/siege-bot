@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 pub use playerstats::*;
 
+pub mod meta;
 /// This section contains all models related to the `playerstats` endpoint
 mod playerstats;
 

@@ -5,3 +5,4 @@ pub const UBI_USER_AGENT: &str = "UbiServices_SDK_2020.Release.58_PC64_ansi_stat
 pub const DEFAULT_SPACE_ID: &str = "0d2ae42d-4c27-4cb7-af6c-2099062302bb";
 
 pub const UBI_SERVICES_URL: &str = "https://public-ubiservices.ubi.com";
+pub const UBI_GAME_STATUS_URL: &str = "https://game-status-api.ubisoft.com/v1/instances";
