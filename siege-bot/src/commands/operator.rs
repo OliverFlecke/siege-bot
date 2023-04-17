@@ -1,19 +1,21 @@
 use async_trait::async_trait;
 use serenity::{
     builder::{CreateApplicationCommand, CreateEmbed},
-    model::prelude::{
-        command::CommandOptionType, interaction::autocomplete::AutocompleteInteraction,
-    },
-    prelude::Context,
+    model::prelude::command::CommandOptionType,
     utils::Color,
 };
 use siege_api::operator::Operator;
 
-use crate::{commands::CommandError, constants::NAME, formatting::FormatEmbedded, SiegeApi};
+use crate::{
+    constants::{AUTOCOMPLETE_LIMIT, NAME},
+    formatting::FormatEmbedded,
+    SiegeApi,
+};
 
 use super::{
-    context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
-    CommandHandler,
+    context::DiscordContext,
+    discord_app_command::{DiscordAppCmd, DiscordAutocompleteInteraction},
+    AddUserOptionToCommand, AutocompleteHandler, CmdResult, CommandHandler,
 };
 
 pub struct OperatorCommand;
@@ -93,35 +95,29 @@ impl CommandHandler for OperatorCommand {
     }
 }
 
-impl OperatorCommand {
+#[async_trait]
+impl AutocompleteHandler for OperatorCommand {
     /// Handle auto complete for operator names.
-    pub async fn handle_autocomplete(
-        ctx: &Context,
-        interaction: &AutocompleteInteraction,
-    ) -> Result<(), CommandError> {
-        if let Some(value) = interaction
-            .data
-            .options
-            .iter()
-            .find(|option| option.name == NAME)
-            .and_then(|x| x.value.clone())
-        {
-            let value = value.as_str().expect("this should always be a string");
-            interaction
-                .create_autocomplete_response(&ctx.http, |response| {
-                    use strum::IntoEnumIterator;
-                    Operator::iter()
-                        .map(|op| op.to_string())
-                        .filter(|op| op.starts_with(value))
-                        .take(25)
-                        .for_each(|op| {
-                            response.add_string_choice(op.as_str(), op.as_str());
-                        });
+    async fn handle_autocomplete<Ctx, Cmd>(ctx: &Ctx, cmd: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAutocompleteInteraction + Send + Sync,
+    {
+        if let Some(value) = cmd.get_user_input() {
+            cmd.create_autocomplete_response(ctx.http(), move |response| {
+                use strum::IntoEnumIterator;
 
-                    response
-                })
-                .await
-                .map_err(CommandError::SerenityError)?;
+                Operator::iter()
+                    .map(|op| op.to_string())
+                    .filter(|op| op.starts_with(value.as_str()))
+                    .take(AUTOCOMPLETE_LIMIT)
+                    .for_each(|op| {
+                        response.add_string_choice(op.as_str(), op.as_str());
+                    });
+
+                response
+            })
+            .await?;
         }
 
         Ok(())
@@ -138,11 +134,29 @@ mod test {
 
     use crate::commands::{
         context::MockDiscordContext,
-        discord_app_command::MockDiscordAppCmd,
+        discord_app_command::{MockDiscordAppCmd, MockDiscordAutocompleteInteraction},
         test::{register_client_in_type_map, MockSiegeClient},
     };
 
     use super::*;
+
+    #[tokio::test]
+    async fn validate_autocomplete() {
+        let mut ctx = MockDiscordContext::default();
+        ctx.expect_http().return_const(None);
+
+        let mut cmd = MockDiscordAutocompleteInteraction::default();
+        cmd.expect_get_user_input()
+            .return_const(Some("Yi".to_string()));
+
+        cmd.expect_create_autocomplete_response()
+            .once()
+            .return_once(|_, _| Ok(()));
+
+        assert!(OperatorCommand::handle_autocomplete(&ctx, &cmd)
+            .await
+            .is_ok());
+    }
 
     #[tokio::test]
     async fn validate_register() {

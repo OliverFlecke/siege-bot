@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use serenity::{builder::CreateApplicationCommand, model::prelude::command::CommandOptionType};
 use thiserror::Error;
 
-use self::{context::DiscordContext, discord_app_command::DiscordAppCmd};
+use self::{
+    context::DiscordContext,
+    discord_app_command::{DiscordAppCmd, DiscordAutocompleteInteraction},
+};
 
 pub mod add_player;
 pub mod all_maps;
@@ -23,6 +26,14 @@ pub trait CommandHandler {
     where
         Ctx: DiscordContext + Send + Sync,
         Cmd: DiscordAppCmd + 'static + Send + Sync;
+}
+
+#[async_trait]
+pub trait AutocompleteHandler {
+    async fn handle_autocomplete<Ctx, Cmd>(ctx: &Ctx, cmd: &Cmd) -> CmdResult
+    where
+        Ctx: DiscordContext + Send + Sync,
+        Cmd: DiscordAutocompleteInteraction + Send + Sync;
 }
 
 #[derive(Debug, Error)]

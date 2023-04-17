@@ -39,4 +39,4 @@ All relevant checks for the code will be done and validated through Github workf
 
 ### Tests
 
-To run all the tests, the environment variables for Ubisoft have to set, as it is required to testing the interaction with the API. Some of these have been marked as `ignored` for now to not run them in the pipeline. This is mostly because Ubisoft do not like me logging in from many different places and closes the account 😫
+To run all the tests, the environment variables for Ubisoft have to set, as it is required to testing the interaction with the API.
