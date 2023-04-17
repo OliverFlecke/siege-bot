@@ -2,16 +2,19 @@ use std::{str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
 use serenity::{
-    builder::CreateEmbed,
+    builder::{CreateAutocompleteResponse, CreateEmbed},
     http::Http,
     model::{
         prelude::interaction::{
             application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
+            autocomplete::AutocompleteInteraction,
             InteractionResponseType,
         },
         user::User,
     },
 };
+
+use crate::constants::NAME;
 
 use super::{CmdResult, CommandError};
 
@@ -96,5 +99,42 @@ impl DiscordAppCmd for ApplicationCommandInteraction {
         )
         .await
         .map_err(CommandError::SerenityError)
+    }
+}
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
+pub trait DiscordAutocompleteInteraction {
+    fn get_user_input(&self) -> Option<String>;
+
+    async fn create_autocomplete_response<F>(&self, http: Option<Arc<Http>>, f: F) -> CmdResult
+    where
+        F: FnOnce(&mut CreateAutocompleteResponse) -> &mut CreateAutocompleteResponse
+            + 'static
+            + Send
+            + Sync;
+}
+
+#[async_trait]
+impl DiscordAutocompleteInteraction for AutocompleteInteraction {
+    fn get_user_input(&self) -> Option<String> {
+        self.data
+            .options
+            .iter()
+            .find(|option| option.name == NAME)
+            .and_then(|x| x.value.clone())
+            .and_then(|x| x.as_str().map(|s| s.to_string()))
+    }
+
+    async fn create_autocomplete_response<F>(&self, http: Option<Arc<Http>>, f: F) -> CmdResult
+    where
+        F: FnOnce(&mut CreateAutocompleteResponse) -> &mut CreateAutocompleteResponse
+            + 'static
+            + Send
+            + Sync,
+    {
+        self.create_autocomplete_response(http.expect("http always ok for autocompletion"), f)
+            .await
+            .map_err(CommandError::SerenityError)
     }
 }

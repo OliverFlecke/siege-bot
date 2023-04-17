@@ -7,7 +7,7 @@ use serenity::{
 use crate::commands::{
     add_player::AddPlayerCommand, all_maps::AllMapsCommand, all_operators::AllOperatorCommand,
     id::IdCommand, map::MapCommand, operator::OperatorCommand, ping::PingCommand,
-    statistics::StatisticsCommand, CommandError, CommandHandler,
+    statistics::StatisticsCommand, AutocompleteHandler, CommandError, CommandHandler,
 };
 
 #[derive(Default)]
