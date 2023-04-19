@@ -19,7 +19,9 @@ use super::{
 #[derive(Debug, Clone, Copy, strum::EnumString, strum::Display, strum::EnumIter)]
 enum Sorting {
     Kd,
-    WinRate,
+    MatchWinRate,
+    RoundWinRate,
+    MatchesPlayed,
     RoundsPlayed,
 }
 
@@ -79,7 +81,9 @@ impl CommandHandler for AllMapsCommand {
         let side = command
             .extract_enum_option::<SideOrAll>(SIDE)
             .expect("required argument");
-        let sorting = command.extract_enum_option(SORTING).unwrap_or(Sorting::Kd);
+        let sorting = command
+            .extract_enum_option(SORTING)
+            .unwrap_or(Sorting::MatchWinRate);
         let minimum_rounds = command
             .get_option(MINIMUM_ROUNDS)
             .and_then(|x| match x {
@@ -143,7 +147,18 @@ fn sort(maps: &mut [&MapStatistics], sorting: Sorting) {
                     .expect("should always be valid")
             });
         }
-        Sorting::WinRate => {
+        Sorting::MatchWinRate => maps.sort_by(|a, b| {
+            b.statistics()
+                .matches_win_rate()
+                .partial_cmp(&a.statistics().matches_win_rate())
+                .expect("match winrate should always be valid")
+        }),
+        Sorting::MatchesPlayed => maps.sort_by(|a, b| {
+            b.statistics()
+                .matches_played()
+                .cmp(a.statistics().matches_played())
+        }),
+        Sorting::RoundWinRate => {
             maps.sort_by(|a, b| {
                 b.statistics()
                     .rounds_win_rate()
@@ -200,7 +215,7 @@ mod test {
         let opt = options.get(1).unwrap();
         assert_eq!(opt.get("name").unwrap(), SORTING);
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
-        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 3);
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 5);
 
         let opt = options.get(2).unwrap();
         assert_eq!(opt.get("name").unwrap(), MINIMUM_ROUNDS);
@@ -224,7 +239,9 @@ mod test {
             (Some(SideOrAll::All), None, Some(10 as i64)),
             (Some(SideOrAll::Attacker), Some(Sorting::Kd), None),
             (Some(SideOrAll::Defender), Some(Sorting::RoundsPlayed), None),
-            (Some(SideOrAll::Defender), Some(Sorting::WinRate), None),
+            (Some(SideOrAll::All), Some(Sorting::RoundWinRate), None),
+            (Some(SideOrAll::All), Some(Sorting::MatchWinRate), None),
+            (Some(SideOrAll::All), Some(Sorting::MatchesPlayed), None),
         ] {
             let mut ctx = MockDiscordContext::new();
             ctx.expect_http().return_const(None);

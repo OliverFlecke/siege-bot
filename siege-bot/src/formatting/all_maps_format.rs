@@ -20,7 +20,9 @@ impl FormatEmbedded<'_, Vec<&MapStatistics>> for CreateEmbed {
             .iter()
             .map(|x| {
                 format!(
-                    "`{:.2} %` (of `{}`)",
+                    "M: `{:.2} %` (`{}`) R: `{:.2} %` (`{}`)",
+                    100.0 * x.statistics().matches_win_rate(),
+                    x.statistics().matches_played(),
                     100.0 * x.statistics().rounds_win_rate(),
                     x.statistics().rounds_played()
                 )
@@ -29,7 +31,7 @@ impl FormatEmbedded<'_, Vec<&MapStatistics>> for CreateEmbed {
 
         self.field("Map", names, true);
         self.field("K/D", kds, true);
-        self.field("Rounds", rounds, true);
+        self.field("Winrate and total", rounds, true);
 
         self
     }
