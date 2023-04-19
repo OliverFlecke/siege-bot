@@ -24,7 +24,7 @@ pub struct GameStatus {
 
 /// Represents the different statuses. This is not an exhausted list, as
 /// there is no documentation from Ubisoft on the actual options.
-#[derive(Debug, Clone, Copy, Deserialize, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Display)]
 pub enum Status {
     Online,
     Degraded,

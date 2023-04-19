@@ -73,7 +73,6 @@ impl CommandHandler for AddPlayerCommand {
             match lookup.insert(&user.id, ubisoft_id) {
                 Ok(_) => {
                     command.send_text(ctx.http(), "Accounts linked!").await?;
-                    // ctx.send_text_message(command, "Accounts linked!").await?;
                 }
                 Err(err) => {
                     tracing::error!("Failed to store user: {err:?}");

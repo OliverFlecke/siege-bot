@@ -12,6 +12,7 @@ pub mod all_maps;
 pub mod all_operators;
 pub mod context;
 pub mod discord_app_command;
+pub mod game_status;
 pub mod id;
 pub mod map;
 pub mod operator;
