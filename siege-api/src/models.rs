@@ -261,6 +261,22 @@ mod mappers {
         Ok(duration)
     }
 
+    pub fn string_to_uuid<'de, D>(deserializer: D) -> Result<Option<Uuid>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: &str = Deserialize::deserialize(deserializer)?;
+        if value.is_empty() {
+            Ok(None)
+        } else {
+            Uuid::parse_str(&value).map(Some).map_err(|err| {
+                serde::de::Error::custom(format!(
+                    "cannot convert string value '{value}' to an uuid. Err: {err}"
+                ))
+            })
+        }
+    }
+
     #[cfg(test)]
     mod test {
         use serde::de::{
