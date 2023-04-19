@@ -37,7 +37,7 @@ impl CommandHandler for GameStatusCommand {
                 Err(err) => {
                     tracing::error!("{err:?}");
                     return command
-                        .send_text(ctx.http(), "No player found with that name")
+                        .send_text(ctx.http(), "Failed to retreive game status")
                         .await;
                 }
             }
