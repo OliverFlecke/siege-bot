@@ -6,7 +6,10 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::auth::{Auth, ConnectError, ConnectResponse};
-use crate::constants::{DEFAULT_SPACE_ID, UBI_APP_ID, UBI_SERVICES_URL, UBI_USER_AGENT};
+use crate::constants::{
+    DEFAULT_SPACE_ID, UBI_APP_ID, UBI_GAME_STATUS_URL, UBI_SERVICES_URL, UBI_USER_AGENT,
+};
+use crate::models::meta::GameStatus;
 use crate::models::{
     FullProfile, PlatformType, PlayerProfile, PlaytimeProfile, PlaytimeResponse, RankedV2Response,
     StatisticResponse,
@@ -26,6 +29,9 @@ pub trait SiegeClient: Sync + Send {
     async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse>;
 
     async fn get_maps(&self, player_id: Uuid) -> Result<StatisticResponse>;
+
+    /// Get the current status of Siege's servers.
+    async fn siege_status(&self) -> Result<Vec<GameStatus>>;
 }
 
 #[derive(Debug)]
@@ -144,6 +150,24 @@ impl SiegeClient for Client {
             tracing::error!("Error: {err:?}");
             ConnectError::UnexpectedResponse
         })
+    }
+
+    async fn siege_status(&self) -> Result<Vec<GameStatus>> {
+        reqwest::get(UBI_GAME_STATUS_URL)
+            .await
+            .map_err(ConnectError::ConnectionError)?
+            .json::<Vec<GameStatus>>()
+            .await
+            .map_err(|err| {
+                println!("{err:?}");
+                tracing::error!("Error: {err:?}");
+                ConnectError::UnexpectedResponse
+            })
+            .map(|s| {
+                s.into_iter()
+                    .filter(|x| x.name().starts_with("Rainbow Six Siege"))
+                    .collect::<Vec<GameStatus>>()
+            })
     }
 }
 
@@ -365,5 +389,14 @@ mod test {
             *playtime.statistics().clearance_level().last_modified()
                 > *playtime.statistics().clearance_level().start_date()
         );
+    }
+
+    #[tokio::test]
+    async fn retreive_server_status() {
+        let status = get_client().await.siege_status().await.unwrap();
+        assert_eq!(status.len(), 7);
+        status
+            .iter()
+            .for_each(|status| assert!(status.name().contains("Rainbow")));
     }
 }

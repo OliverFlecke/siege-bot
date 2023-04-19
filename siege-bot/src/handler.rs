@@ -6,8 +6,9 @@ use serenity::{
 
 use crate::commands::{
     add_player::AddPlayerCommand, all_maps::AllMapsCommand, all_operators::AllOperatorCommand,
-    id::IdCommand, map::MapCommand, operator::OperatorCommand, ping::PingCommand,
-    statistics::StatisticsCommand, AutocompleteHandler, CommandError, CommandHandler,
+    game_status::GameStatusCommand, id::IdCommand, map::MapCommand, operator::OperatorCommand,
+    ping::PingCommand, statistics::StatisticsCommand, AutocompleteHandler, CommandError,
+    CommandHandler,
 };
 
 #[derive(Default)]
@@ -17,14 +18,15 @@ async fn sync_commands(guild_id: GuildId, ctx: &Context) {
     tracing::info!("Syncing commands to {guild_id}");
     match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
         commands
-            .create_application_command(|command| PingCommand::register(command))
-            .create_application_command(|command| IdCommand::register(command))
-            .create_application_command(|command| StatisticsCommand::register(command))
-            .create_application_command(|command| MapCommand::register(command))
-            .create_application_command(|command| OperatorCommand::register(command))
-            .create_application_command(|command| AddPlayerCommand::register(command))
-            .create_application_command(|command| AllOperatorCommand::register(command))
-            .create_application_command(|command| AllMapsCommand::register(command))
+            .create_application_command(PingCommand::register)
+            .create_application_command(IdCommand::register)
+            .create_application_command(StatisticsCommand::register)
+            .create_application_command(MapCommand::register)
+            .create_application_command(OperatorCommand::register)
+            .create_application_command(AddPlayerCommand::register)
+            .create_application_command(AllOperatorCommand::register)
+            .create_application_command(AllMapsCommand::register)
+            .create_application_command(GameStatusCommand::register)
     })
     .await
     {
@@ -72,6 +74,7 @@ impl EventHandler for Handler {
                     "add" => AddPlayerCommand::run(&ctx, &command).await,
                     "all_operators" => AllOperatorCommand::run(&ctx, &command).await,
                     "all_maps" => AllMapsCommand::run(&ctx, &command).await,
+                    "status" => GameStatusCommand::run(&ctx, &command).await,
                     _ => Err(CommandError::CommandNotFound),
                 };
 

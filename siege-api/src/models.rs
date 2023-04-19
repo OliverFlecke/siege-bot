@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 pub use playerstats::*;
 
+pub mod meta;
 /// This section contains all models related to the `playerstats` endpoint
 mod playerstats;
 
@@ -258,6 +259,22 @@ mod mappers {
         let duration = Duration::milliseconds((item * 1000f64).round() as i64);
 
         Ok(duration)
+    }
+
+    pub fn string_to_uuid<'de, D>(deserializer: D) -> Result<Option<Uuid>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: &str = Deserialize::deserialize(deserializer)?;
+        if value.is_empty() {
+            Ok(None)
+        } else {
+            Uuid::parse_str(&value).map(Some).map_err(|err| {
+                serde::de::Error::custom(format!(
+                    "cannot convert string value '{value}' to an uuid. Err: {err}"
+                ))
+            })
+        }
     }
 
     #[cfg(test)]
