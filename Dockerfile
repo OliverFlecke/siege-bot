@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.68.0 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.69.0 AS chef
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 WORKDIR /app
 
