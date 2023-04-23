@@ -116,13 +116,26 @@ pub struct Playtime {
 pub struct RankedV2Response {
     platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
 }
-#[derive(Debug, Deserialize, Getters)]
+
+impl RankedV2Response {
+    pub fn get_for_platform(
+        &self,
+        platform: PlatformFamily,
+    ) -> Option<&PlatformFamiliesFullProfile> {
+        self.platform_families_full_profiles
+            .iter()
+            .find(|x| x.platform_family == platform)
+    }
+}
+
+#[derive(Debug, Deserialize, Getters, PartialEq, Eq)]
 pub struct PlatformFamiliesFullProfile {
     #[allow(dead_code)]
     platform_family: PlatformFamily,
     board_ids_full_profiles: Vec<Board>,
 }
-#[derive(Debug, Deserialize, Getters)]
+
+#[derive(Debug, Deserialize, Getters, PartialEq, Eq)]
 pub struct Board {
     #[allow(dead_code)]
     board_id: PlayType,
@@ -131,13 +144,13 @@ pub struct Board {
 
 /// The full profile returned from the Ranked V2 API. This, together with its
 /// nested fields, contains the high level data for each season.
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct FullProfile {
     profile: Profile,
     season_statistics: SeasonStatistics,
 }
 
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct Profile {
     #[serde(rename = "board_id")]
     play_type: PlayType,
@@ -149,7 +162,7 @@ pub struct Profile {
     top_rank_position: i64,
 }
 
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct SeasonStatistics {
     deaths: u64,
     kills: u64,
@@ -162,7 +175,7 @@ impl SeasonStatistics {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Default, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct MatchOutcomes {
     abandons: u64,
     losses: u64,
@@ -193,14 +206,14 @@ impl MatchOutcomes {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PlatformFamily {
     Pc,
     Console,
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PlayType {
     Casual,
@@ -304,9 +317,25 @@ mod mappers {
 
 #[cfg(test)]
 mod test {
+    use std::fs::read_to_string;
+
     use strum::IntoEnumIterator;
 
     use super::*;
+
+    #[test]
+    fn ranked_v2_get() {
+        let content = read_to_string("../samples/full_profile.json").unwrap();
+        let response: RankedV2Response = serde_json::from_str(content.as_str()).unwrap();
+
+        assert_eq!(
+            response.get_for_platform(PlatformFamily::Pc),
+            response.platform_families_full_profiles.get(0),
+        );
+
+        // No console data is included in the sample, so `None` is expected.
+        assert_eq!(response.get_for_platform(PlatformFamily::Console), None);
+    }
 
     #[test]
     fn get_spaces() {
