@@ -11,7 +11,7 @@ use serenity::{
 };
 use siege_api::auth::Auth;
 use siege_player_lookup::SiegePlayerLookup;
-use std::{error::Error, sync::Arc};
+use std::{env::var, error::Error, sync::Arc};
 
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -24,7 +24,15 @@ impl TypeMapKey for SiegeApi {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Setup tracing
+    let file_appender = tracing_appender::rolling::daily(
+        var("LOGS_DIR").unwrap_or_else(|_| "./logs/".to_string()),
+        "siege-bot.log",
+    );
+    // `_guard` is needed to ensure logs are flush when dropped.
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(non_blocking))
         .with(fmt::layer())
         .with(
             EnvFilter::from_default_env()
@@ -33,8 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
-    let token =
-        std::env::var("DISCORD_TOKEN").expect("environment variable `DISCORD_TOKEN` should be set");
+    let token = var("DISCORD_TOKEN").expect("environment variable `DISCORD_TOKEN` should be set");
     let intents = GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;

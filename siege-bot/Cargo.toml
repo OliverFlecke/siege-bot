@@ -24,6 +24,7 @@ async-trait = "0.1.68"
 duplicate = "1.0.0"
 strum = "0.24.1"
 serde_json = "1.0.95"
+tracing-appender = "0.2.2"
 
 [dev-dependencies]
 chrono = "0.4.24"
