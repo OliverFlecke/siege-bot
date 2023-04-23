@@ -118,6 +118,7 @@ pub struct RankedV2Response {
 }
 
 impl RankedV2Response {
+    /// Retreive statistics by platform family.
     pub fn get_for_platform(
         &self,
         platform: PlatformFamily,
@@ -130,15 +131,22 @@ impl RankedV2Response {
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq)]
 pub struct PlatformFamiliesFullProfile {
-    #[allow(dead_code)]
     platform_family: PlatformFamily,
     board_ids_full_profiles: Vec<Board>,
 }
 
+impl PlatformFamiliesFullProfile {
+    pub fn get_by_playtype(&self, play_type: PlayType) -> Option<&Board> {
+        self.board_ids_full_profiles
+            .iter()
+            .find(|x| x.play_type == play_type)
+    }
+}
+
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq)]
 pub struct Board {
-    #[allow(dead_code)]
-    board_id: PlayType,
+    #[serde(rename = "board_id")]
+    play_type: PlayType,
     full_profiles: Vec<FullProfile>,
 }
 
@@ -335,6 +343,31 @@ mod test {
 
         // No console data is included in the sample, so `None` is expected.
         assert_eq!(response.get_for_platform(PlatformFamily::Console), None);
+    }
+
+    #[test]
+    fn ranked_v2_get_board_by_play_type() {
+        let content = read_to_string("../samples/full_profile.json").unwrap();
+        let response: RankedV2Response = serde_json::from_str(content.as_str()).unwrap();
+
+        let platforms = response.platform_families_full_profiles.get(0).unwrap();
+
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(0),
+            platforms.get_by_playtype(PlayType::Casual)
+        );
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(1),
+            platforms.get_by_playtype(PlayType::Event)
+        );
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(2),
+            platforms.get_by_playtype(PlayType::Warmup)
+        );
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(3),
+            platforms.get_by_playtype(PlayType::Ranked)
+        );
     }
 
     #[test]
