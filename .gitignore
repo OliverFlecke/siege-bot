@@ -3,3 +3,4 @@
 .envrc
 .players.json
 logs/
+.env

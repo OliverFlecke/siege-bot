@@ -23,7 +23,7 @@ In order to link Discord IDs to Ubisoft accounts between restarts, the bot will 
 
 ### Logs
 
-Logs will by default be outputted to stdout and written to daily rolling files in `./logs/`. This directory can be customized by setting `LOGS_DIR` in the environment.
+Logs will by default be outputted to stdout and written to daily rolling files in `./logs/`. This directory can be customized by setting `LOGS_DIR` in the environment. If running inside a container, this must be mounted to a host machines directory to be persisted.
 
 ## Running inside container
 
