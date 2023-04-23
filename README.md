@@ -21,6 +21,10 @@ The bot can then be run with from the root of the repository with `cargo run sie
 
 In order to link Discord IDs to Ubisoft accounts between restarts, the bot will store these relationships in a json file. It will first look relative to itself for `.players.json` or secondly at `/config/.players.json`. The second one was added to support mounting the file inside a container.
 
+### Logs
+
+Logs will by default be outputted to stdout and written to daily rolling files in `./logs/`. This directory can be customized by setting `LOGS_DIR` in the environment.
+
 ## Running inside container
 
 To run the bot as a container, the following comand can be used:
