@@ -129,9 +129,10 @@ impl RankedV2Response {
     }
 
     /// Get the statistics board for a given platform family and play type.
-    pub fn get_board(&self, platform: PlatformFamily, play_type: PlayType) -> Option<&Board> {
+    pub fn get_board(&self, platform: PlatformFamily, play_type: PlayType) -> Option<&FullProfile> {
         self.get_for_platform(platform)
             .and_then(|x| x.get_by_playtype(play_type))
+            .and_then(|x| x.full_profiles.get(0))
     }
 }
 
@@ -384,9 +385,8 @@ mod test {
         let expected = response
             .platform_families_full_profiles
             .get(0)
-            .unwrap()
-            .board_ids_full_profiles
-            .get(3);
+            .and_then(|x| x.board_ids_full_profiles.get(3))
+            .and_then(|x| x.full_profiles.get(0));
 
         assert_eq!(
             response.get_board(PlatformFamily::Pc, PlayType::Ranked),
