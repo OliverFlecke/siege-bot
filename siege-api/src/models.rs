@@ -296,7 +296,7 @@ mod mappers {
         if value.is_empty() {
             Ok(None)
         } else {
-            Uuid::parse_str(&value).map(Some).map_err(|err| {
+            Uuid::parse_str(value).map(Some).map_err(|err| {
                 serde::de::Error::custom(format!(
                     "cannot convert string value '{value}' to an uuid. Err: {err}"
                 ))

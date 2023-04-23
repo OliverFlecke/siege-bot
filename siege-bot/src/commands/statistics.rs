@@ -48,8 +48,8 @@ impl CommandHandler for StatisticsCommand {
 
         let profile: siege_api::models::FullProfile = profiles[0];
 
-        let season = profile.season_statistics().clone();
-        let matches = season.match_outcomes().clone();
+        let season = *profile.season_statistics();
+        let matches = *season.match_outcomes();
 
         command
             .send_embedded(
