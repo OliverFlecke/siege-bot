@@ -2,3 +2,4 @@
 /Cargo.lock
 .envrc
 .players.json
+logs/
