@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use std::fmt::Display;
-use strum::EnumIter;
+use strum::{Display, EnumIter, EnumString};
 
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use derive_getters::Getters;
@@ -112,35 +112,63 @@ pub struct Playtime {
 }
 
 // Helper structs to extract the unnecessary nesting from the API.
-#[derive(Debug, Deserialize, Getters)]
+#[derive(Debug, Deserialize)]
 pub struct RankedV2Response {
     platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
 }
-#[derive(Debug, Deserialize, Getters)]
+
+impl RankedV2Response {
+    /// Retreive statistics by platform family.
+    pub fn get_for_platform(
+        &self,
+        platform: PlatformFamily,
+    ) -> Option<&PlatformFamiliesFullProfile> {
+        self.platform_families_full_profiles
+            .iter()
+            .find(|x| x.platform_family == platform)
+    }
+
+    /// Get the statistics board for a given platform family and play type.
+    pub fn get_board(&self, platform: PlatformFamily, play_type: GameMode) -> Option<&FullProfile> {
+        self.get_for_platform(platform)
+            .and_then(|x| x.get_by_playtype(play_type))
+            .and_then(|x| x.full_profiles.get(0))
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct PlatformFamiliesFullProfile {
-    #[allow(dead_code)]
     platform_family: PlatformFamily,
     board_ids_full_profiles: Vec<Board>,
 }
-#[derive(Debug, Deserialize, Getters)]
+
+impl PlatformFamiliesFullProfile {
+    pub fn get_by_playtype(&self, play_type: GameMode) -> Option<&Board> {
+        self.board_ids_full_profiles
+            .iter()
+            .find(|x| x.game_mode == play_type)
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Board {
-    #[allow(dead_code)]
-    board_id: PlayType,
+    #[serde(rename = "board_id")]
+    game_mode: GameMode,
     full_profiles: Vec<FullProfile>,
 }
 
 /// The full profile returned from the Ranked V2 API. This, together with its
 /// nested fields, contains the high level data for each season.
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct FullProfile {
     profile: Profile,
     season_statistics: SeasonStatistics,
 }
 
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct Profile {
     #[serde(rename = "board_id")]
-    play_type: PlayType,
+    game_mode: GameMode,
     id: Uuid,
     max_rank: i64,
     max_rank_points: i64,
@@ -149,7 +177,7 @@ pub struct Profile {
     top_rank_position: i64,
 }
 
-#[derive(Debug, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct SeasonStatistics {
     deaths: u64,
     kills: u64,
@@ -162,7 +190,7 @@ impl SeasonStatistics {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Getters, Clone, Copy)]
+#[derive(Debug, Default, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct MatchOutcomes {
     abandons: u64,
     losses: u64,
@@ -193,16 +221,16 @@ impl MatchOutcomes {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
 #[serde(rename_all = "lowercase")]
 pub enum PlatformFamily {
     Pc,
     Console,
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
 #[serde(rename_all = "lowercase")]
-pub enum PlayType {
+pub enum GameMode {
     Casual,
     Ranked,
     Event,
@@ -269,7 +297,7 @@ mod mappers {
         if value.is_empty() {
             Ok(None)
         } else {
-            Uuid::parse_str(&value).map(Some).map_err(|err| {
+            Uuid::parse_str(value).map(Some).map_err(|err| {
                 serde::de::Error::custom(format!(
                     "cannot convert string value '{value}' to an uuid. Err: {err}"
                 ))
@@ -304,9 +332,67 @@ mod mappers {
 
 #[cfg(test)]
 mod test {
+    use std::fs::read_to_string;
+
     use strum::IntoEnumIterator;
 
     use super::*;
+
+    #[test]
+    fn ranked_v2_get() {
+        let content = read_to_string("../samples/full_profile.json").unwrap();
+        let response: RankedV2Response = serde_json::from_str(content.as_str()).unwrap();
+
+        assert_eq!(
+            response.get_for_platform(PlatformFamily::Pc),
+            response.platform_families_full_profiles.get(0),
+        );
+
+        // No console data is included in the sample, so `None` is expected.
+        assert_eq!(response.get_for_platform(PlatformFamily::Console), None);
+    }
+
+    #[test]
+    fn ranked_v2_get_board_by_play_type() {
+        let content = read_to_string("../samples/full_profile.json").unwrap();
+        let response: RankedV2Response = serde_json::from_str(content.as_str()).unwrap();
+
+        let platforms = response.platform_families_full_profiles.get(0).unwrap();
+
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(0),
+            platforms.get_by_playtype(GameMode::Casual)
+        );
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(1),
+            platforms.get_by_playtype(GameMode::Event)
+        );
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(2),
+            platforms.get_by_playtype(GameMode::Warmup)
+        );
+        assert_eq!(
+            platforms.board_ids_full_profiles.get(3),
+            platforms.get_by_playtype(GameMode::Ranked)
+        );
+    }
+
+    #[test]
+    fn ranked_v2_get_board_by_platform_and_play_type() {
+        let content = read_to_string("../samples/full_profile.json").unwrap();
+        let response: RankedV2Response = serde_json::from_str(content.as_str()).unwrap();
+
+        let expected = response
+            .platform_families_full_profiles
+            .get(0)
+            .and_then(|x| x.board_ids_full_profiles.get(3))
+            .and_then(|x| x.full_profiles.get(0));
+
+        assert_eq!(
+            response.get_board(PlatformFamily::Pc, GameMode::Ranked),
+            expected
+        );
+    }
 
     #[test]
     fn get_spaces() {

@@ -66,7 +66,7 @@ impl CommandHandler for GameStatusCommand {
                         game_status
                             .iter()
                             .map(|x| x.name())
-                            .fold(String::new(), |acc, next| acc + &next + "\n"),
+                            .fold(String::new(), |acc, next| acc + next + "\n"),
                         true,
                     )
                     .field(
@@ -85,7 +85,7 @@ impl CommandHandler for GameStatusCommand {
                                 .flat_map(|x| x.impacted_features())
                                 .collect::<HashSet<_>>()
                                 .iter()
-                                .fold(String::new(), |acc, next| acc + &next + "\n"),
+                                .fold(String::new(), |acc, next| acc + next + "\n"),
                         )
                         .filter(|s| !s.is_empty())
                         .unwrap_or_else(|| "None".to_string()),
