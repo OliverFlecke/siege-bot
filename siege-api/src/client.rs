@@ -11,7 +11,7 @@ use crate::constants::{
 };
 use crate::models::meta::GameStatus;
 use crate::models::{
-    FullProfile, PlatformType, PlayerProfile, PlaytimeProfile, PlaytimeResponse, RankedV2Response,
+    PlatformType, PlayerProfile, PlaytimeProfile, PlaytimeResponse, RankedV2Response,
     StatisticResponse,
 };
 
@@ -24,7 +24,7 @@ pub trait SiegeClient: Sync + Send {
 
     async fn get_playtime(&self, player_id: Uuid) -> Result<PlaytimeProfile>;
 
-    async fn get_full_profiles(&self, player_id: Uuid) -> Result<Vec<FullProfile>>;
+    async fn get_full_profiles(&self, player_id: Uuid) -> Result<RankedV2Response>;
 
     async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse>;
 
@@ -104,7 +104,7 @@ impl SiegeClient for Client {
     /// Get full Siege profiles from the API. This will only contain the latest
     /// statistics from the current season. It does *not* look like it is possible
     /// to query earlier seasons at the moment.
-    async fn get_full_profiles(&self, player_id: Uuid) -> Result<Vec<FullProfile>> {
+    async fn get_full_profiles(&self, player_id: Uuid) -> Result<RankedV2Response> {
         let url = Url::parse_with_params(
             format!(
                 "{UBI_SERVICES_URL}/v2/spaces/{DEFAULT_SPACE_ID}/title/r6s/skill/full_profiles"
@@ -124,11 +124,7 @@ impl SiegeClient for Client {
             ConnectError::UnexpectedResponse
         })?;
 
-        Ok(profile.platform_families_full_profiles()[0]
-            .board_ids_full_profiles()
-            .iter()
-            .map(|x| x.full_profiles()[0])
-            .collect::<Vec<_>>())
+        Ok(profile)
     }
 
     /// Retreive statistics about operators for a given player.

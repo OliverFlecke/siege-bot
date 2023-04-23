@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use std::fmt::Display;
-use strum::EnumIter;
+use strum::{Display, EnumIter, EnumString};
 
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use derive_getters::Getters;
@@ -112,7 +112,7 @@ pub struct Playtime {
 }
 
 // Helper structs to extract the unnecessary nesting from the API.
-#[derive(Debug, Deserialize, Getters)]
+#[derive(Debug, Deserialize)]
 pub struct RankedV2Response {
     platform_families_full_profiles: Vec<PlatformFamiliesFullProfile>,
 }
@@ -129,31 +129,31 @@ impl RankedV2Response {
     }
 
     /// Get the statistics board for a given platform family and play type.
-    pub fn get_board(&self, platform: PlatformFamily, play_type: PlayType) -> Option<&FullProfile> {
+    pub fn get_board(&self, platform: PlatformFamily, play_type: GameMode) -> Option<&FullProfile> {
         self.get_for_platform(platform)
             .and_then(|x| x.get_by_playtype(play_type))
             .and_then(|x| x.full_profiles.get(0))
     }
 }
 
-#[derive(Debug, Deserialize, Getters, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct PlatformFamiliesFullProfile {
     platform_family: PlatformFamily,
     board_ids_full_profiles: Vec<Board>,
 }
 
 impl PlatformFamiliesFullProfile {
-    pub fn get_by_playtype(&self, play_type: PlayType) -> Option<&Board> {
+    pub fn get_by_playtype(&self, play_type: GameMode) -> Option<&Board> {
         self.board_ids_full_profiles
             .iter()
-            .find(|x| x.play_type == play_type)
+            .find(|x| x.game_mode == play_type)
     }
 }
 
-#[derive(Debug, Deserialize, Getters, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Board {
     #[serde(rename = "board_id")]
-    play_type: PlayType,
+    game_mode: GameMode,
     full_profiles: Vec<FullProfile>,
 }
 
@@ -168,7 +168,7 @@ pub struct FullProfile {
 #[derive(Debug, Deserialize, Getters, Clone, Copy, PartialEq, Eq)]
 pub struct Profile {
     #[serde(rename = "board_id")]
-    play_type: PlayType,
+    game_mode: GameMode,
     id: Uuid,
     max_rank: i64,
     max_rank_points: i64,
@@ -221,16 +221,16 @@ impl MatchOutcomes {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
 #[serde(rename_all = "lowercase")]
 pub enum PlatformFamily {
     Pc,
     Console,
 }
 
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, EnumString, Display, EnumIter)]
 #[serde(rename_all = "lowercase")]
-pub enum PlayType {
+pub enum GameMode {
     Casual,
     Ranked,
     Event,
@@ -361,19 +361,19 @@ mod test {
 
         assert_eq!(
             platforms.board_ids_full_profiles.get(0),
-            platforms.get_by_playtype(PlayType::Casual)
+            platforms.get_by_playtype(GameMode::Casual)
         );
         assert_eq!(
             platforms.board_ids_full_profiles.get(1),
-            platforms.get_by_playtype(PlayType::Event)
+            platforms.get_by_playtype(GameMode::Event)
         );
         assert_eq!(
             platforms.board_ids_full_profiles.get(2),
-            platforms.get_by_playtype(PlayType::Warmup)
+            platforms.get_by_playtype(GameMode::Warmup)
         );
         assert_eq!(
             platforms.board_ids_full_profiles.get(3),
-            platforms.get_by_playtype(PlayType::Ranked)
+            platforms.get_by_playtype(GameMode::Ranked)
         );
     }
 
@@ -389,7 +389,7 @@ mod test {
             .and_then(|x| x.full_profiles.get(0));
 
         assert_eq!(
-            response.get_board(PlatformFamily::Pc, PlayType::Ranked),
+            response.get_board(PlatformFamily::Pc, GameMode::Ranked),
             expected
         );
     }
