@@ -13,8 +13,6 @@ jobs:
     name: stable / fmt
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - name: Install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -36,8 +34,6 @@ jobs:
         toolchain: [stable]
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - name: Install ${{ matrix.toolchain }}
         uses: actions-rs/toolchain@v1
         with:
@@ -49,4 +45,3 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-

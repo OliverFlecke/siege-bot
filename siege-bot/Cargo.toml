@@ -1,8 +1,8 @@
 [package]
 name = "siege-bot"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
-rust-version = "1.68"
+rust-version = "1.69"
 authors = ["Oliver Fleckenstein <oliverfl@live.dk>"]
 publish = false
 
@@ -24,6 +24,7 @@ async-trait = "0.1.68"
 duplicate = "1.0.0"
 strum = "0.24.1"
 serde_json = "1.0.95"
+tracing-appender = "0.2.2"
 
 [dev-dependencies]
 chrono = "0.4.24"

@@ -20,6 +20,10 @@ jobs:
 
       - uses: actions/checkout@v3
 
+      - name: Get bot version
+        id: bot-version
+        run: echo "version=$(cat siege-bot/Cargo.toml | grep version | head -n1 | grep -o "\".*\"" | tr -d '"')" >> "$GITHUB_OUTPUT"
+
       - name: Login to container registry
         uses: redhat-actions/podman-login@v1
         with:
@@ -32,7 +36,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           image: siege-bot
-          tags: latest ${{ github.sha }}
+          tags: latest ${{ github.sha }} ${{ steps.bot-version.outputs.version }}
           platforms: linux/amd64
           containerfiles: Dockerfile
           layers: true
