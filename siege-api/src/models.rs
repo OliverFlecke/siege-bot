@@ -172,8 +172,8 @@ pub struct Profile {
     #[serde(rename = "board_id")]
     game_mode: GameMode,
     id: Uuid,
-    max_rank: i64,
-    max_rank_points: i64,
+    max_rank: u8,
+    max_rank_points: u64,
     platform_family: PlatformFamily,
     #[serde(rename = "season_id", deserialize_with = "mappers::u8_to_season")]
     season: Season,

@@ -4,7 +4,10 @@ use serenity::{
     model::prelude::command::CommandOptionType,
     utils::Color,
 };
-use siege_api::models::{GameMode, PlatformFamily};
+use siege_api::{
+    data::rank::Rank,
+    models::{GameMode, PlatformFamily},
+};
 use strum::IntoEnumIterator;
 
 use crate::SiegeApi;
@@ -119,9 +122,9 @@ impl CommandHandler for StatisticsCommand {
                     embedded.field(
                         "Rank",
                         format!(
-                            "Max rank points: **{}**\nMax rank: **{}**",
+                            "Max rank: **{}**\nMax rank points: **{}**",
+                            Rank::from_repr(*data.profile().max_rank()).unwrap_or(Rank::Unranked),
                             data.profile().max_rank_points(),
-                            data.profile().max_rank(),
                         ),
                         false,
                     );
