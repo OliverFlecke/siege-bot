@@ -9,6 +9,8 @@ use uuid::Uuid;
 
 pub use playerstats::*;
 
+use crate::game_models::Season;
+
 pub mod meta;
 /// This section contains all models related to the `playerstats` endpoint
 mod playerstats;
@@ -173,7 +175,8 @@ pub struct Profile {
     max_rank: i64,
     max_rank_points: i64,
     platform_family: PlatformFamily,
-    season_id: u8,
+    #[serde(rename = "season_id", deserialize_with = "mappers::u8_to_season")]
+    season: Season,
     top_rank_position: i64,
 }
 
@@ -303,6 +306,17 @@ mod mappers {
                 ))
             })
         }
+    }
+
+    pub fn u8_to_season<'de, D>(deserializer: D) -> Result<Season, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: u8 = Deserialize::deserialize(deserializer)?;
+        Season::from_repr(value).ok_or(serde::de::Error::custom(format!(
+            "cannot convert '{}' to a season",
+            value
+        )))
     }
 
     #[cfg(test)]

@@ -27,12 +27,12 @@ impl CommandHandler for StatisticsCommand {
             .description("Get the statistics for a Siege player")
             .create_option(|option| {
                 option
-                    .name(PLATFORM)
-                    .description("Platform to retrieve player's data from")
+                    .name(GAME_MODE)
+                    .description("Game mode to get statistics for")
                     .kind(CommandOptionType::String)
                     .required(false);
 
-                PlatformFamily::iter().for_each(|x| {
+                GameMode::iter().for_each(|x| {
                     option.add_string_choice(x.to_string(), x.to_string());
                 });
 
@@ -40,12 +40,12 @@ impl CommandHandler for StatisticsCommand {
             })
             .create_option(|option| {
                 option
-                    .name(GAME_MODE)
-                    .description("Game mode to get statistics for")
+                    .name(PLATFORM)
+                    .description("Platform to retrieve player's data from")
                     .kind(CommandOptionType::String)
                     .required(false);
 
-                GameMode::iter().for_each(|x| {
+                PlatformFamily::iter().for_each(|x| {
                     option.add_string_choice(x.to_string(), x.to_string());
                 });
 
@@ -89,12 +89,10 @@ impl CommandHandler for StatisticsCommand {
                 let season = *data.season_statistics();
                 let matches = *season.match_outcomes();
 
-                command
-                .send_embedded(
-                    ctx.http().clone(),
-                    CreateEmbed::default()
-                        .title(format!("Statistics for {}", user.name))
+                let mut embedded = CreateEmbed::default();
+                embedded.title(format!("{game_mode} statistics for {} | {}", user.name, data.profile().season()))
                         .thumbnail(user.avatar_url().unwrap())
+                        .color(Color::DARK_RED)
                         .field(
                             "Kill/death",
                             format!(
@@ -115,18 +113,30 @@ impl CommandHandler for StatisticsCommand {
                                 win_rate = matches.win_rate() * 100.0,
                             ),
                             false,
-                        )
-                        .color(Color::DARK_RED)
-                        .clone(),
-                )
-                .await
+                        );
+
+                if game_mode == GameMode::Ranked {
+                    embedded.field(
+                        "Rank",
+                        format!(
+                            "Max rank points: **{}**\nMax rank: **{}**",
+                            data.profile().max_rank_points(),
+                            data.profile().max_rank(),
+                        ),
+                        false,
+                    );
+                }
+
+                command
+                    .send_embedded(ctx.http().clone(), embedded.clone())
+                    .await
             }
             None => {
                 command
                     .send_text(
                         ctx.http().clone(),
                         format!(
-                            "No data found for {platform}/{game_mode} for player {}",
+                            "No data found for {game_mode}/{platform} for player {}",
                             user.tag()
                         )
                         .as_str(),
@@ -170,18 +180,18 @@ mod test {
         let options = command.0.get("options").unwrap().as_array().unwrap();
 
         let opt = options.get(0).unwrap();
-        assert_eq!(opt.get("name").unwrap(), PLATFORM);
-        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
-        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::User`
-        assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
-        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 2);
-
-        let opt = options.get(1).unwrap();
         assert_eq!(opt.get("name").unwrap(), GAME_MODE);
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
-        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::User`
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3);
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
         assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 4);
+
+        let opt = options.get(1).unwrap();
+        assert_eq!(opt.get("name").unwrap(), PLATFORM);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3);
+        assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 2);
 
         let opt = options.get(2).unwrap();
         assert_eq!(opt.get("name").unwrap(), "user");

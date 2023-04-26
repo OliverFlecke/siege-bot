@@ -329,11 +329,12 @@ mod test {
 
     #[tokio::test]
     async fn full_player_profiles() {
-        _ = get_client()
+        let stats = get_client()
             .await
             .get_full_profiles(mock_player_id())
             .await
             .unwrap();
+        println!("{:#?}", stats);
     }
 
     #[tokio::test]
