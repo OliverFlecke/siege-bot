@@ -28,6 +28,7 @@ pub struct GameStatus {
 pub enum Status {
     Online,
     Degraded,
+    Interrupted,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Display)]
