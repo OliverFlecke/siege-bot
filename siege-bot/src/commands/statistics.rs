@@ -130,9 +130,7 @@ impl CommandHandler for StatisticsCommand {
                     );
                 }
 
-                command
-                    .send_embedded(ctx.http().clone(), embedded.clone())
-                    .await
+                command.send_embedded(ctx.http().clone(), embedded).await
             }
             None => {
                 command
@@ -341,8 +339,8 @@ mod test {
                 always(),
                 eq(format!(
                     "No data found for {}/{} for player {}",
-                    PlatformFamily::Console,
                     GameMode::Casual,
+                    PlatformFamily::Console,
                     user.tag()
                 )),
             )
