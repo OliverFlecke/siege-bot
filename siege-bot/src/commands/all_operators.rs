@@ -6,9 +6,17 @@ use serenity::{
     },
     utils::Color,
 };
-use siege_api::{game_models::Side, models::OperatorStatistics};
+use siege_api::{
+    game_models::Side,
+    models::{AllOrRanked, OperatorStatistics},
+};
+use strum::IntoEnumIterator;
 
-use crate::{formatting::FormatEmbedded, SiegeApi};
+use crate::{
+    constants::{GAME_MODE, MINIMUM_ROUNDS, SIDE, SORTING},
+    formatting::FormatEmbedded,
+    SiegeApi,
+};
 
 use super::{
     context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
@@ -21,10 +29,6 @@ enum Sorting {
     WinRate,
     RoundsPlayed,
 }
-
-static SIDE: &str = "side";
-static SORTING: &str = "sorting";
-static MINIMUM_ROUNDS: &str = "minimum_rounds";
 
 pub struct AllOperatorCommand;
 
@@ -50,7 +54,6 @@ impl CommandHandler for AllOperatorCommand {
                     .kind(CommandOptionType::String)
                     .required(false);
 
-                use strum::IntoEnumIterator;
                 Sorting::iter().for_each(|sorting| {
                     option.add_string_choice(sorting, sorting);
                 });
@@ -63,6 +66,19 @@ impl CommandHandler for AllOperatorCommand {
                     .description("Ignore operators you have played for less than this limit")
                     .kind(CommandOptionType::Integer)
                     .required(false)
+            })
+            .create_option(|option| {
+                option
+                    .name(GAME_MODE)
+                    .description("Game mode to retreive statistics for")
+                    .kind(CommandOptionType::String)
+                    .required(false);
+
+                AllOrRanked::iter().for_each(|mode| {
+                    option.add_string_choice(mode, mode);
+                });
+
+                option
             })
             .add_user_option()
     }
@@ -82,6 +98,9 @@ impl CommandHandler for AllOperatorCommand {
                 _ => None,
             })
             .unwrap_or(0);
+        let game_mode = command
+            .extract_enum_option(GAME_MODE)
+            .unwrap_or(AllOrRanked::All);
 
         let user = command.get_user_from_command_or_default();
         tracing::info!(
@@ -106,7 +125,7 @@ impl CommandHandler for AllOperatorCommand {
         };
 
         let mut operators = operator_response
-            .get_operators(side.into())
+            .get_operators(game_mode, side.into())
             .iter()
             .filter(|op| *op.statistics().rounds_played() as i64 >= minimum_rounds)
             .copied()
@@ -118,7 +137,10 @@ impl CommandHandler for AllOperatorCommand {
                 ctx.http().clone(),
                 CreateEmbed::default()
                     .thumbnail(user.avatar_url().unwrap_or_default())
-                    .title(format!("{} operator statistics for {}", side, user.name))
+                    .title(format!(
+                        "{}/{} operator statistics for {}",
+                        game_mode, side, user.name
+                    ))
                     .color(Color::TEAL)
                     .format(&operators)
                     .to_owned(),
@@ -172,6 +194,7 @@ mod test {
             discord_app_command::MockDiscordAppCmd,
             test::{register_client_in_type_map, MockSiegeClient},
         },
+        constants::USER,
         siege_player_lookup::{MockPlayerLookup, SiegePlayerLookup},
     };
 
@@ -209,7 +232,13 @@ mod test {
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 4); // Corresponds to `CommandOptionType::Integer`
 
         let opt = options.get(3).unwrap();
-        assert_eq!(opt.get("name").unwrap(), "user");
+        assert_eq!(opt.get("name").unwrap(), GAME_MODE);
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::String`
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 2);
+
+        let opt = options.get(4).unwrap();
+        assert_eq!(opt.get("name").unwrap(), USER);
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::Integer`
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
@@ -221,10 +250,20 @@ mod test {
         let siege_id = Uuid::new_v4();
 
         // Testing different combinations of arguments.
-        for (side, sorting, rounds) in vec![
-            (Some(Side::Attacker), Some(Sorting::Kd), Some(10 as i64)),
-            (Some(Side::Defender), Some(Sorting::RoundsPlayed), None),
-            (Some(Side::Defender), Some(Sorting::WinRate), None),
+        for (side, sorting, rounds, game_mode) in vec![
+            (
+                Some(Side::Attacker),
+                Some(Sorting::Kd),
+                Some(10 as i64),
+                Some(AllOrRanked::All),
+            ),
+            (
+                Some(Side::Defender),
+                Some(Sorting::RoundsPlayed),
+                None,
+                Some(AllOrRanked::Ranked),
+            ),
+            (Some(Side::Defender), Some(Sorting::WinRate), None, None),
         ] {
             // Ensure the expected message is sent back through the command
             let mut ctx = MockDiscordContext::new();
@@ -266,6 +305,10 @@ mod test {
                 .expect_get_option()
                 .with(eq(MINIMUM_ROUNDS))
                 .return_const(rounds.map(|x| CommandDataOptionValue::Integer(x)));
+            command
+                .expect_extract_enum_option::<AllOrRanked>()
+                .with(eq(GAME_MODE))
+                .return_const(game_mode);
             command
                 .expect_get_user_from_command_or_default()
                 .return_const(user.clone());
@@ -314,6 +357,10 @@ mod test {
         command
             .expect_get_option()
             .with(eq(MINIMUM_ROUNDS))
+            .return_const(None);
+        command
+            .expect_extract_enum_option::<AllOrRanked>()
+            .with(eq(GAME_MODE))
             .return_const(None);
         command
             .expect_get_user_from_command_or_default()

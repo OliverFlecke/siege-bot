@@ -6,10 +6,10 @@ use serenity::{
     },
     utils::Color,
 };
-use siege_api::models::{MapStatistics, SideOrAll};
+use siege_api::models::{AllOrRanked, MapStatistics, SideOrAll};
 use strum::IntoEnumIterator;
 
-use crate::{formatting::FormatEmbedded, SiegeApi};
+use crate::{constants::GAME_MODE, formatting::FormatEmbedded, SiegeApi};
 
 use super::{
     context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
@@ -70,6 +70,19 @@ impl CommandHandler for AllMapsCommand {
                     .kind(CommandOptionType::Integer)
                     .required(false)
             })
+            .create_option(|option| {
+                option
+                    .name(GAME_MODE)
+                    .description("Game mode to retreive statistics for")
+                    .kind(CommandOptionType::String)
+                    .required(false);
+
+                AllOrRanked::iter().for_each(|mode| {
+                    option.add_string_choice(mode, mode);
+                });
+
+                option
+            })
             .add_user_option()
     }
 
@@ -91,6 +104,9 @@ impl CommandHandler for AllMapsCommand {
                 _ => None,
             })
             .unwrap_or(0);
+        let game_mode = command
+            .extract_enum_option(GAME_MODE)
+            .unwrap_or(AllOrRanked::All);
 
         let user = command.get_user_from_command_or_default();
         tracing::info!(
@@ -115,7 +131,7 @@ impl CommandHandler for AllMapsCommand {
         };
 
         let mut maps = response
-            .get_maps(side)
+            .get_maps(game_mode, side)
             .iter()
             .filter(|x| *x.statistics().rounds_played() as i64 >= minimum_rounds)
             .copied()
@@ -128,7 +144,10 @@ impl CommandHandler for AllMapsCommand {
                 ctx.http(),
                 CreateEmbed::default()
                     .thumbnail(user.avatar_url().unwrap_or_default())
-                    .title(format!("{} map statistics for {}", side, user.name))
+                    .title(format!(
+                        "{}/{} map statistics for {}",
+                        game_mode, side, user.name
+                    ))
                     .color(Color::TEAL)
                     .format(&maps)
                     .to_owned(),
@@ -183,10 +202,13 @@ mod test {
     use siege_api::models::StatisticResponse;
     use uuid::Uuid;
 
-    use crate::commands::{
-        context::MockDiscordContext,
-        discord_app_command::MockDiscordAppCmd,
-        test::{register_client_in_type_map, MockSiegeClient},
+    use crate::{
+        commands::{
+            context::MockDiscordContext,
+            discord_app_command::MockDiscordAppCmd,
+            test::{register_client_in_type_map, MockSiegeClient},
+        },
+        constants::USER,
     };
 
     use super::*;
@@ -223,9 +245,16 @@ mod test {
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 4); // Corresponds to `CommandOptionType::Integer`
 
         let opt = options.get(3).unwrap();
-        assert_eq!(opt.get("name").unwrap(), "user");
+        assert_eq!(opt.get("name").unwrap(), GAME_MODE);
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
-        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::Integer`
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::String`
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 2);
+        assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+
+        let opt = options.get(4).unwrap();
+        assert_eq!(opt.get("name").unwrap(), USER);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6);
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
     }
 
@@ -235,13 +264,43 @@ mod test {
         let siege_id = Uuid::new_v4();
 
         // Testing different combinations of arguments.
-        for (side, sorting, rounds) in vec![
-            (Some(SideOrAll::All), None, Some(10 as i64)),
-            (Some(SideOrAll::Attacker), Some(Sorting::Kd), None),
-            (Some(SideOrAll::Defender), Some(Sorting::RoundsPlayed), None),
-            (Some(SideOrAll::All), Some(Sorting::RoundWinRate), None),
-            (Some(SideOrAll::All), Some(Sorting::MatchWinRate), None),
-            (Some(SideOrAll::All), Some(Sorting::MatchesPlayed), None),
+        for (side, sorting, rounds, game_mode) in vec![
+            (
+                Some(SideOrAll::All),
+                None,
+                Some(10 as i64),
+                Some(AllOrRanked::All),
+            ),
+            (
+                Some(SideOrAll::Attacker),
+                Some(Sorting::Kd),
+                None,
+                Some(AllOrRanked::Ranked),
+            ),
+            (
+                Some(SideOrAll::Defender),
+                Some(Sorting::RoundsPlayed),
+                None,
+                None,
+            ),
+            (
+                Some(SideOrAll::All),
+                Some(Sorting::RoundWinRate),
+                None,
+                None,
+            ),
+            (
+                Some(SideOrAll::All),
+                Some(Sorting::MatchWinRate),
+                None,
+                None,
+            ),
+            (
+                Some(SideOrAll::All),
+                Some(Sorting::MatchesPlayed),
+                None,
+                None,
+            ),
         ] {
             let mut ctx = MockDiscordContext::new();
             ctx.expect_http().return_const(None);
@@ -271,6 +330,10 @@ mod test {
                 .expect_get_option()
                 .with(eq(MINIMUM_ROUNDS))
                 .return_const(rounds.map(|x| CommandDataOptionValue::Integer(x)));
+            command
+                .expect_extract_enum_option::<AllOrRanked>()
+                .with(eq(GAME_MODE))
+                .return_const(game_mode);
             command
                 .expect_get_user_from_command_or_default()
                 .return_const(user.clone());
@@ -320,6 +383,10 @@ mod test {
         command
             .expect_get_option()
             .with(eq(MINIMUM_ROUNDS))
+            .return_const(None);
+        command
+            .expect_extract_enum_option::<AllOrRanked>()
+            .with(eq(GAME_MODE))
             .return_const(None);
         command
             .expect_get_user_from_command_or_default()
