@@ -137,7 +137,10 @@ impl CommandHandler for AllOperatorCommand {
                 ctx.http().clone(),
                 CreateEmbed::default()
                     .thumbnail(user.avatar_url().unwrap_or_default())
-                    .title(format!("{} operator statistics for {}", side, user.name))
+                    .title(format!(
+                        "{}/{} operator statistics for {}",
+                        game_mode, side, user.name
+                    ))
                     .color(Color::TEAL)
                     .format(&operators)
                     .to_owned(),

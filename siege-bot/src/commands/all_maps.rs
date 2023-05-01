@@ -144,7 +144,10 @@ impl CommandHandler for AllMapsCommand {
                 ctx.http(),
                 CreateEmbed::default()
                     .thumbnail(user.avatar_url().unwrap_or_default())
-                    .title(format!("{} map statistics for {}", side, user.name))
+                    .title(format!(
+                        "{}/{} map statistics for {}",
+                        game_mode, side, user.name
+                    ))
                     .color(Color::TEAL)
                     .format(&maps)
                     .to_owned(),

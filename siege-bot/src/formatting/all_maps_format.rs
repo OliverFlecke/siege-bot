@@ -20,7 +20,7 @@ impl FormatEmbedded<'_, Vec<&MapStatistics>> for CreateEmbed {
             .iter()
             .map(|x| {
                 format!(
-                    "M: `{:.2} %` (`{}`) R: `{:.2} %` (`{}`)",
+                    "M: `{:.2} %` (`{}`) R: `{:.2} %` (`{: >3}`)",
                     100.0 * x.statistics().matches_win_rate(),
                     x.statistics().matches_played(),
                     100.0 * x.statistics().rounds_win_rate(),

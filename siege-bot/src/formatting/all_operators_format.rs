@@ -20,7 +20,7 @@ impl FormatEmbedded<'_, Vec<&OperatorStatistics>> for CreateEmbed {
             .iter()
             .map(|op| {
                 format!(
-                    "`{:.2} %` (of `{}`)",
+                    "`{: >6.2} %` (of `{: >3}`)",
                     100.0 * op.statistics().rounds_win_rate(),
                     op.statistics().rounds_played()
                 )
