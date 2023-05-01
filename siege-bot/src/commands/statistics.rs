@@ -10,15 +10,15 @@ use siege_api::{
 };
 use strum::IntoEnumIterator;
 
-use crate::SiegeApi;
+use crate::{
+    constants::{GAME_MODE, PLATFORM},
+    SiegeApi,
+};
 
 use super::{
     context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
     CommandHandler,
 };
-
-const PLATFORM: &str = "platform";
-const GAME_MODE: &str = "game_mode";
 
 pub struct StatisticsCommand;
 

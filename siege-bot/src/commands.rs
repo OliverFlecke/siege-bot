@@ -2,6 +2,8 @@ use async_trait::async_trait;
 use serenity::{builder::CreateApplicationCommand, model::prelude::command::CommandOptionType};
 use thiserror::Error;
 
+use crate::constants::USER;
+
 use self::{
     context::DiscordContext,
     discord_app_command::{DiscordAppCmd, DiscordAutocompleteInteraction},
@@ -57,7 +59,7 @@ impl AddUserOptionToCommand for CreateApplicationCommand {
     fn add_user_option(&mut self) -> &mut CreateApplicationCommand {
         self.create_option(|option| {
             option
-                .name("user")
+                .name(USER)
                 .description("The user to get statistics for. Defaults to the sending user")
                 .kind(CommandOptionType::User)
                 .required(false)

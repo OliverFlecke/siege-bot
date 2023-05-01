@@ -24,6 +24,12 @@ impl From<Side> for SideOrAll {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString, strum::EnumIter)]
+pub enum AllOrRanked {
+    All,
+    Ranked,
+}
+
 #[derive(Debug, Deserialize, Getters)]
 #[serde(rename_all = "camelCase")]
 pub struct StatisticResponse {
@@ -42,58 +48,75 @@ pub struct StatisticResponse {
 impl StatisticResponse {
     /// Get all statistics for the given side.
     ///
+    /// # Arguments
+    ///
+    /// * `game_mode` - The game mode to get data for. Currently only `all` and `ranked` is supported.
+    /// * `role` - Side to get statistics for.
+    ///
     /// NOTE: Currently only the statistics from PC is returned.
-    pub fn get_statistics_from_side(&self, role: SideOrAll) -> Option<&Vec<GeneralStatistics>> {
-        let roles = match self.platforms.pc.game_modes.all.as_ref() {
-            Some(r) => r,
-            None => return None,
+    pub fn get_statistics_from_side(
+        &self,
+        game_mode: AllOrRanked,
+        role: SideOrAll,
+    ) -> Option<&Vec<GeneralStatistics>> {
+        let roles = match game_mode {
+            AllOrRanked::All => self.platforms.pc.game_modes.all.as_ref(),
+            AllOrRanked::Ranked => self.platforms.pc.game_modes.ranked.as_ref(),
         };
 
-        match role {
-            SideOrAll::All => Some(&roles.team_roles.all),
-            SideOrAll::Attacker => Some(&roles.team_roles.attacker),
-            SideOrAll::Defender => Some(&roles.team_roles.defenders),
-        }
+        roles.map(|x| match role {
+            SideOrAll::All => &x.team_roles.all,
+            SideOrAll::Attacker => &x.team_roles.attacker,
+            SideOrAll::Defender => &x.team_roles.defenders,
+        })
     }
 
     /// Utility method to help extract specific statistics types from self.
-    fn get_statistics<T, F>(&self, side: SideOrAll, filter: F) -> Vec<&T>
+    fn get_statistics<T, F>(&self, game_mode: AllOrRanked, side: SideOrAll, filter: F) -> Vec<&T>
     where
         F: Fn(&GeneralStatistics) -> Option<&T>,
     {
-        self.get_statistics_from_side(side)
+        self.get_statistics_from_side(game_mode, side)
             .map(|x| x.iter().filter_map(filter).collect())
             .unwrap_or_else(Vec::default)
     }
 
     /// Extract all operators from this side.
-    pub fn get_operators(&self, side: SideOrAll) -> Vec<&OperatorStatistics> {
-        self.get_statistics(side, |x| match x {
+    pub fn get_operators(
+        &self,
+        game_mode: AllOrRanked,
+        side: SideOrAll,
+    ) -> Vec<&OperatorStatistics> {
+        self.get_statistics(game_mode, side, |x| match x {
             GeneralStatistics::Operator(op) => Some(op),
             _ => None,
         })
     }
 
     /// Get all maps statistics for a given side.
-    pub fn get_maps(&self, side: SideOrAll) -> Vec<&MapStatistics> {
-        self.get_statistics(side, |x| match x {
+    pub fn get_maps(&self, game_mode: AllOrRanked, side: SideOrAll) -> Vec<&MapStatistics> {
+        self.get_statistics(game_mode, side, |x| match x {
             GeneralStatistics::Maps(map) => Some(map),
             _ => None,
         })
     }
 
     /// Get an operator with a specific name.
+    ///
+    /// Note that this will currently always get statistics in all modes and for both the defenders and attackers side.
+    /// The side does not really matter, as each operator is only on one side.
     pub fn get_operator(&self, operator: Operator) -> Option<&OperatorStatistics> {
         // Can always use `All` here, as all operators are always included here.
-        self.get_operators(SideOrAll::All)
+        self.get_operators(AllOrRanked::All, SideOrAll::All)
             .iter()
             .find(|op| op.name == operator)
             .copied()
     }
 
     /// Get statistics for a given map.
+    /// Note that this will currently always get statistics in all modes and for both the defenders and attackers side.
     pub fn get_map(&self, map_name: Map) -> Option<&MapStatistics> {
-        self.get_maps(SideOrAll::All)
+        self.get_maps(AllOrRanked::All, SideOrAll::All)
             .iter()
             .find(|map| *map.name() == map_name)
             .copied()
@@ -294,8 +317,10 @@ mod test {
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
 
         // Assert this will return valid statistics for the given side.
-        SideOrAll::iter().for_each(|side| {
-            stats.get_statistics_from_side(side).unwrap();
+        AllOrRanked::iter().for_each(|mode| {
+            SideOrAll::iter().for_each(|side| {
+                stats.get_statistics_from_side(mode, side).unwrap();
+            });
         });
     }
 
@@ -304,10 +329,15 @@ mod test {
         let content = std::fs::read_to_string("../samples/operators.json").unwrap();
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
 
+        use AllOrRanked::*;
         // Act
-        assert_eq!(stats.get_operators(SideOrAll::All).len(), 47);
-        assert_eq!(stats.get_operators(SideOrAll::Defender).len(), 27);
-        assert_eq!(stats.get_operators(SideOrAll::Attacker).len(), 20);
+        assert_eq!(stats.get_operators(All, SideOrAll::All).len(), 47);
+        assert_eq!(stats.get_operators(All, SideOrAll::Defender).len(), 27);
+        assert_eq!(stats.get_operators(All, SideOrAll::Attacker).len(), 20);
+
+        assert_eq!(stats.get_operators(Ranked, SideOrAll::All).len(), 3);
+        assert_eq!(stats.get_operators(Ranked, SideOrAll::Defender).len(), 1);
+        assert_eq!(stats.get_operators(Ranked, SideOrAll::Attacker).len(), 2);
     }
 
     #[test]
@@ -315,10 +345,15 @@ mod test {
         let content = std::fs::read_to_string("../samples/maps.json").unwrap();
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
 
+        use AllOrRanked::*;
         // Act
-        assert_eq!(stats.get_maps(SideOrAll::All).len(), 23);
-        assert_eq!(stats.get_maps(SideOrAll::Defender).len(), 22);
-        assert_eq!(stats.get_maps(SideOrAll::Attacker).len(), 23);
+        assert_eq!(stats.get_maps(All, SideOrAll::All).len(), 23);
+        assert_eq!(stats.get_maps(All, SideOrAll::Defender).len(), 22);
+        assert_eq!(stats.get_maps(All, SideOrAll::Attacker).len(), 23);
+
+        assert_eq!(stats.get_maps(Ranked, SideOrAll::All).len(), 5);
+        assert_eq!(stats.get_maps(Ranked, SideOrAll::Defender).len(), 5);
+        assert_eq!(stats.get_maps(Ranked, SideOrAll::Attacker).len(), 5);
     }
 
     #[test]

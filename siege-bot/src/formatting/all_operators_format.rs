@@ -40,7 +40,7 @@ mod test {
     use std::ops::Sub;
 
     use chrono::{DateTime, Utc};
-    use siege_api::models::{SideOrAll, StatisticResponse};
+    use siege_api::models::{AllOrRanked, SideOrAll, StatisticResponse};
 
     use super::*;
 
@@ -49,7 +49,7 @@ mod test {
         let mut embed = CreateEmbed::default();
         let content = std::fs::read_to_string("../samples/operators.json").unwrap();
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
-        let maps = stats.get_operators(SideOrAll::All);
+        let maps = stats.get_operators(AllOrRanked::All, SideOrAll::All);
 
         embed.format(&maps);
 
