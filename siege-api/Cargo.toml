@@ -9,7 +9,7 @@ authors = ["Oliver Fleckenstein <oliverfl@live.dk>"]
 async-trait = "0.1.68"
 base64 = "0.21.0"
 chrono = { version = "0.4.24", features = ["serde"] }
-derive-getters = "0.2.0"
+derive-getters = "0.3.0"
 lazy_static = "1.4.0"
 reqwest = { version = "0.11.15", default-features = false, features = [
     "json",
