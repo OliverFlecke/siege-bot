@@ -34,6 +34,7 @@ pub enum Season {
     Y7S3,
     Y7S4,
     Y8S1,
+    Y8S2,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -79,6 +80,7 @@ pub enum Role {
     SoftBreach,
     Trap,
     AntiGadget,
+    Trapper,
 }
 
 #[cfg(test)]

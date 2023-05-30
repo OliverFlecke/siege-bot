@@ -71,7 +71,10 @@ impl CommandHandler for StatisticsCommand {
             .extract_enum_option(GAME_MODE)
             .unwrap_or(GameMode::Casual);
 
-        tracing::info!("Getting statistics for {}", user.name);
+        tracing::info!(
+            "Getting statistics for {} on {platform} in mode {game_mode}",
+            user.name
+        );
 
         let statistics = {
             let data = ctx.data().read().await;
