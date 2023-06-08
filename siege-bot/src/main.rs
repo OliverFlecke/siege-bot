@@ -25,7 +25,7 @@ impl TypeMapKey for SiegeApi {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Setup tracing
-    let file_appender = tracing_appender::rolling::daily(
+    let file_appender = tracing_appender::rolling::never(
         var("LOGS_DIR").unwrap_or_else(|_| "./logs/".to_string()),
         "siege-bot.log",
     );
