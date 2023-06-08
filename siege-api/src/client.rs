@@ -272,6 +272,7 @@ mod test {
     use async_once::AsyncOnce;
     use chrono::{DateTime, Duration};
     use lazy_static::lazy_static;
+    use tracing_test::traced_test;
 
     use crate::auth::Auth;
 
@@ -321,6 +322,7 @@ mod test {
         println!("{:?}", stats);
     }
 
+    #[traced_test]
     #[tokio::test]
     async fn maps_statistics() {
         let stats = get_client().await.get_maps(mock_player_id()).await.unwrap();
