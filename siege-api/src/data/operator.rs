@@ -974,7 +974,7 @@ pub fn get_operator_details(operator: Operator) -> OperatorDetails {
             side: Side::Defender,
         },
 
-        Operator::Recruit => OperatorDetails {
+        Operator::Recruit | Operator::NoClass => OperatorDetails {
             realname: "Unknown".to_string(),
             birthplace: "Unknown".to_string(),
             age: 0,
