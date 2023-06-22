@@ -77,6 +77,8 @@ pub enum Operator {
     Tachanka,
     Kapkan,
     Recruit,
+    #[serde(rename = "No Class")]
+    NoClass,
 }
 
 impl Operator {

@@ -131,10 +131,10 @@ impl SiegeClient for Client {
     async fn get_operators(&self, player_id: Uuid) -> Result<StatisticResponse> {
         let url = create_summary_query(player_id, AggregationType::Operators);
         let response = self.get(url).await?;
-        response
-            .json::<StatisticResponse>()
-            .await
-            .map_err(|_| ConnectError::UnexpectedResponse)
+        response.json::<StatisticResponse>().await.map_err(|err| {
+            tracing::error!("Error: {err:?}");
+            ConnectError::UnexpectedResponse
+        })
     }
 
     /// Get maps statistics for a given player.
@@ -312,6 +312,7 @@ mod test {
         )
     }
 
+    #[traced_test]
     #[tokio::test]
     async fn operators_statistics() {
         let stats = get_client()
