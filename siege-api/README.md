@@ -6,7 +6,7 @@ Contains a Rust crate for interacting with Ubisoft's API for Rainbow 6 Siege.
 
 Tested with Rust v1.68.0.
 
-## Authentication 
+## Authentication
 
 Authentication is required to communicate with the API. This requires an email and password for an Ubisoft account. These should be exposed as environment variables, eg:
 
