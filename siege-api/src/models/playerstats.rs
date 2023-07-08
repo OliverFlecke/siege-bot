@@ -24,8 +24,11 @@ impl From<Side> for SideOrAll {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString, strum::EnumIter)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString, strum::EnumIter,
+)]
 pub enum AllOrRanked {
+    #[default]
     All,
     Ranked,
 }
@@ -105,9 +108,13 @@ impl StatisticResponse {
     ///
     /// Note that this will currently always get statistics in all modes and for both the defenders and attackers side.
     /// The side does not really matter, as each operator is only on one side.
-    pub fn get_operator(&self, operator: Operator) -> Option<&OperatorStatistics> {
+    pub fn get_operator(
+        &self,
+        operator: Operator,
+        game_mode: AllOrRanked,
+    ) -> Option<&OperatorStatistics> {
         // Can always use `All` here, as all operators are always included here.
-        self.get_operators(AllOrRanked::All, SideOrAll::All)
+        self.get_operators(game_mode, SideOrAll::All)
             .iter()
             .find(|op| op.name == operator)
             .copied()
@@ -361,7 +368,9 @@ mod test {
         let content = std::fs::read_to_string("../samples/operators.json").unwrap();
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
 
-        let operator = stats.get_operator(Operator::Hibana).unwrap();
+        let operator = stats
+            .get_operator(Operator::Hibana, AllOrRanked::All)
+            .unwrap();
 
         assert_eq!(operator.name, Operator::Hibana);
         assert_eq!(*operator.statistics.matches_played(), 3);
@@ -382,7 +391,9 @@ mod test {
     fn statistics_win_rates() {
         let content = std::fs::read_to_string("../samples/operators.json").unwrap();
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
-        let operator = stats.get_operator(Operator::Ying).unwrap();
+        let operator = stats
+            .get_operator(Operator::Ying, AllOrRanked::All)
+            .unwrap();
 
         assert_eq!(operator.statistics().opening_win_rate(), 0.6785714285714286);
         assert_eq!(operator.statistics().matches_win_rate(), 0.5657894736842105);

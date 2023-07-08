@@ -7,7 +7,7 @@ use serenity::{
 use siege_api::operator::Operator;
 
 use crate::{
-    constants::{AUTOCOMPLETE_LIMIT, NAME},
+    constants::{AUTOCOMPLETE_LIMIT, GAME_MODE, NAME},
     formatting::FormatEmbedded,
     SiegeApi,
 };
@@ -34,6 +34,7 @@ impl CommandHandler for OperatorCommand {
                     .set_autocomplete(true)
                     .required(true)
             })
+            .add_game_mode_option()
             .add_user_option()
     }
 
@@ -45,6 +46,7 @@ impl CommandHandler for OperatorCommand {
         let operator = command
             .extract_enum_option(NAME)
             .expect("required argument");
+        let game_mode = command.extract_enum_option(GAME_MODE).unwrap_or_default();
         let user = command.get_user_from_command_or_default();
         let player_id = ctx.lookup_siege_player(command, &user).await?;
 
@@ -67,7 +69,7 @@ impl CommandHandler for OperatorCommand {
             }
         };
 
-        let operator = match response.get_operator(operator) {
+        let operator = match response.get_operator(operator, game_mode) {
             Some(operator) => operator,
             None => {
                 command
@@ -129,13 +131,16 @@ mod test {
     use mockall::predicate::*;
     use serde_json::Value;
     use serenity::model::user::User;
-    use siege_api::models::StatisticResponse;
+    use siege_api::models::{AllOrRanked, StatisticResponse};
     use uuid::Uuid;
 
-    use crate::commands::{
-        context::MockDiscordContext,
-        discord_app_command::{MockDiscordAppCmd, MockDiscordAutocompleteInteraction},
-        test::{register_client_in_type_map, MockSiegeClient},
+    use crate::{
+        commands::{
+            context::MockDiscordContext,
+            discord_app_command::{MockDiscordAppCmd, MockDiscordAutocompleteInteraction},
+            test::{register_client_in_type_map, MockSiegeClient},
+        },
+        constants::USER,
     };
 
     use super::*;
@@ -177,11 +182,18 @@ mod test {
         let opt = options.get(0).unwrap();
         assert_eq!(opt.get("name").unwrap(), NAME);
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(true));
-        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::User`
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3);
         assert_eq!(*opt.get("autocomplete").unwrap(), Value::Bool(true));
 
         let opt = options.get(1).unwrap();
-        assert_eq!(opt.get("name").unwrap(), "user");
+        assert_eq!(opt.get("name").unwrap(), GAME_MODE);
+        assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
+        assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3); // Corresponds to `CommandOptionType::String`
+        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 2);
+        assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
+
+        let opt = options.get(2).unwrap();
+        assert_eq!(opt.get("name").unwrap(), USER);
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 6); // Corresponds to `CommandOptionType::User`
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
@@ -217,6 +229,11 @@ mod test {
             .once()
             .with(eq(NAME))
             .return_const(Operator::Ying);
+        command
+            .expect_extract_enum_option()
+            .once()
+            .with(eq(GAME_MODE))
+            .return_const(AllOrRanked::All);
         command
             .expect_send_embedded()
             .once()
@@ -255,6 +272,11 @@ mod test {
             .once()
             .with(eq(NAME))
             .return_const(Operator::Ying);
+        command
+            .expect_extract_enum_option::<AllOrRanked>()
+            .once()
+            .with(eq(GAME_MODE))
+            .return_const(None);
         command
             .expect_send_text()
             .once()
