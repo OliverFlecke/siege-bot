@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use serenity::{builder::CreateApplicationCommand, model::prelude::command::CommandOptionType};
+use strum::IntoEnumIterator;
 use thiserror::Error;
 
-use crate::constants::USER;
+use crate::constants::{GAME_MODE, USER};
 
 use self::{
     context::DiscordContext,
@@ -52,17 +53,37 @@ pub enum CommandError {
 pub type CmdResult = core::result::Result<(), CommandError>;
 
 trait AddUserOptionToCommand {
+    /// Add an option to the command to specify an user.
     fn add_user_option(&mut self) -> &mut Self;
+
+    /// Add an option to the command to specify the game mode.
+    fn add_game_mode_option(&mut self) -> &mut Self;
 }
 
 impl AddUserOptionToCommand for CreateApplicationCommand {
-    fn add_user_option(&mut self) -> &mut CreateApplicationCommand {
+    fn add_user_option(&mut self) -> &mut Self {
         self.create_option(|option| {
             option
                 .name(USER)
                 .description("The user to get statistics for. Defaults to the sending user")
                 .kind(CommandOptionType::User)
                 .required(false)
+        })
+    }
+
+    fn add_game_mode_option(&mut self) -> &mut Self {
+        self.create_option(|option| {
+            option
+                .name(GAME_MODE)
+                .description("Game mode to retreive statistics for")
+                .kind(CommandOptionType::String)
+                .required(false);
+
+            siege_api::models::AllOrRanked::iter().for_each(|mode| {
+                option.add_string_choice(mode, mode);
+            });
+
+            option
         })
     }
 }

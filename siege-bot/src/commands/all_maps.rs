@@ -70,19 +70,7 @@ impl CommandHandler for AllMapsCommand {
                     .kind(CommandOptionType::Integer)
                     .required(false)
             })
-            .create_option(|option| {
-                option
-                    .name(GAME_MODE)
-                    .description("Game mode to retreive statistics for")
-                    .kind(CommandOptionType::String)
-                    .required(false);
-
-                AllOrRanked::iter().for_each(|mode| {
-                    option.add_string_choice(mode, mode);
-                });
-
-                option
-            })
+            .add_game_mode_option()
             .add_user_option()
     }
 

@@ -130,7 +130,10 @@ mod test {
     use std::ops::Sub;
 
     use chrono::{DateTime, Utc};
-    use siege_api::{models::StatisticResponse, operator};
+    use siege_api::{
+        models::{AllOrRanked, StatisticResponse},
+        operator,
+    };
 
     use super::*;
 
@@ -139,7 +142,9 @@ mod test {
         let mut embed = CreateEmbed::default();
         let content = std::fs::read_to_string("../samples/operators.json").unwrap();
         let stats: StatisticResponse = serde_json::from_str(content.as_str()).unwrap();
-        let operator = stats.get_operator(operator::Operator::Hibana).unwrap();
+        let operator = stats
+            .get_operator(operator::Operator::Hibana, AllOrRanked::All)
+            .unwrap();
 
         embed.format(operator.statistics());
 
