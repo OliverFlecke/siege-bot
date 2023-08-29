@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added Y8S3 to the `Season` enum.
-- Added new operator `Ram`.
+- Added `Y8S3` to the `Season` enum.
+- Added new operator `Ram` to `Operater` enum.
+- Added game mode `Standard` to `GameMode` enum.
 
 ## [0.8.0]
 
