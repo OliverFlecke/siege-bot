@@ -5,6 +5,7 @@ pub use crate::data::operator::get_operator_details;
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, EnumString, Display, EnumIter)]
 pub enum Operator {
+    Ram,
     Fenrir,
     Brava,
     Solis,
