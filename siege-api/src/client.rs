@@ -329,6 +329,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "This endpoint will not return any data at the beginning of a season, so the test is unreliable at that point."]
     async fn full_player_profiles() {
         let stats = get_client()
             .await
