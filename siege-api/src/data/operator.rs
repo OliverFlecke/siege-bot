@@ -22,6 +22,19 @@ pub struct OperatorDetails {
 
 pub fn get_operator_details(operator: Operator) -> OperatorDetails {
     match operator {
+        Operator::Ram => OperatorDetails {
+            realname: "Bo-Ram Choi".to_string(),
+            birthplace: "Busan, South Korea".to_string(),
+            age: 37,
+            date_of_birth: "April 25".to_string(),
+            season_introduced: Season::Y8S3,
+            health: Health::High,
+            speed: Speed::Slow,
+            unit: "Redhammer".to_string(),
+            country_code: "KR".to_string(),
+            roles: vec![Role::Breach],
+            side: Side::Attacker,
+        },
         Operator::Fenrir => OperatorDetails {
             realname: "Emil Svensson".to_string(),
             birthplace: "Uppsala, Sweden".to_string(),

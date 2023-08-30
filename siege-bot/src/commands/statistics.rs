@@ -188,7 +188,10 @@ mod test {
         assert_eq!(*opt.get("required").unwrap(), Value::Bool(false));
         assert_eq!(opt.get("type").unwrap().as_u64().unwrap(), 3);
         assert!(!opt.get("description").unwrap().as_str().unwrap().is_empty());
-        assert_eq!(opt.get("choices").unwrap().as_array().unwrap().len(), 4);
+        assert_eq!(
+            opt.get("choices").unwrap().as_array().unwrap().len(),
+            GameMode::iter().len()
+        );
 
         let opt = options.get(1).unwrap();
         assert_eq!(opt.get("name").unwrap(), PLATFORM);

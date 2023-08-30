@@ -238,6 +238,7 @@ pub enum GameMode {
     Ranked,
     Event,
     Warmup,
+    Standard,
 }
 
 mod mappers {

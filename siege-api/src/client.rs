@@ -252,13 +252,11 @@ fn create_summary_query(player_id: Uuid, aggregation: AggregationType) -> Url {
             ),
             (
                 "gameMode",
-                vec!["all", "ranked", "cansal", "unranked"]
-                    .join(",")
-                    .as_str(),
+                ["all", "ranked", "cansal", "unranked"].join(",").as_str(),
             ),
             (
                 "teamRole",
-                vec!["all", "Attacker", "Defender"].join(",").as_str(),
+                ["all", "Attacker", "Defender"].join(",").as_str(),
             ),
             // ("startDate", format_date(start_date).as_str()),
             // ("endDate", format_date(end_date).as_str()),
@@ -331,6 +329,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "This endpoint will not return any data at the beginning of a season, so the test is unreliable at that point."]
     async fn full_player_profiles() {
         let stats = get_client()
             .await
