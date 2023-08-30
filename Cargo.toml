@@ -1,5 +1,6 @@
 [workspace]
 members = ["siege-api", "siege-bot"]
+resolver = "2"
 
 [profile.coverage]
 inherits = "test"
