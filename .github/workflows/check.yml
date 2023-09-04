@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     name: stable / fmt
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -33,7 +33,7 @@ jobs:
       matrix:
         toolchain: [stable]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install ${{ matrix.toolchain }}
         uses: actions-rs/toolchain@v1
         with:
