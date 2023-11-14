@@ -80,6 +80,8 @@ pub enum Operator {
     Recruit,
     #[serde(rename = "No Class")]
     NoClass,
+    #[serde(other)]
+    Unknown,
 }
 
 impl Operator {
