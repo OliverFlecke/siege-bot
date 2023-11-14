@@ -49,6 +49,8 @@ pub enum Map {
     Tower,
     Villa,
     Yacht,
+    #[serde(other)]
+    Unknown,
 }
 
 impl Map {
@@ -78,6 +80,7 @@ impl Map {
             Self::Tower => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/6ZMBunxANmzTNr42wwzggb/3a19c506f9e3f910e34da21095686fa9/r6-maps-tower.jpg",
             Self::Villa => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/Io6dxNeHbCbJoF9WLJf9s/ebf89b009affba37df84dcf1934c74e0/r6-maps-villa.jpg",
             Self::Yacht => "https://staticctf.ubisoft.com/J3yJr34U2pZ2Ieem48Dwy9uqj5PNUQTn/smDP6lSSaB6Daa7bLZxHZ/d6cc60d76e553e91503a474ff0bc148b/r6-maps-yacht.jpg",
+            Self::Unknown => "",
         }
     }
 }

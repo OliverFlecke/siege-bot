@@ -36,6 +36,8 @@ pub enum Season {
     Y8S1,
     Y8S2,
     Y8S3,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
