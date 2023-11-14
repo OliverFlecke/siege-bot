@@ -54,6 +54,8 @@ pub enum Platform {
     XboxOne,
     #[serde(rename = "iOS")]
     IOS,
+    #[serde(other)]
+    Unkwon,
 }
 
 #[cfg(test)]
