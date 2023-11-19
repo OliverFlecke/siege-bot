@@ -4,3 +4,6 @@ resolver = "2"
 
 [profile.coverage]
 inherits = "test"
+
+[workspace.dependencies]
+webpki = "^0.22.2"
