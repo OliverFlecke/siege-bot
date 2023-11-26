@@ -1,5 +1,12 @@
 on:
   pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.rs'
+      - '**/Cargo.*'
+      - 'Dockerfile'
+
 
 name: changelog
 concurrency:
