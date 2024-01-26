@@ -4,6 +4,7 @@ pub mod formatting;
 pub mod handler;
 pub mod siege_player_lookup;
 
+use crate::{handler::Handler, siege_player_lookup::PlayerLookupImpl};
 use serenity::{
     model::prelude::*,
     prelude::{RwLock, TypeMapKey},
@@ -12,10 +13,7 @@ use serenity::{
 use siege_api::auth::Auth;
 use siege_player_lookup::SiegePlayerLookup;
 use std::{env::var, error::Error, sync::Arc};
-
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-
-use crate::{handler::Handler, siege_player_lookup::PlayerLookupImpl};
 
 struct SiegeApi;
 impl TypeMapKey for SiegeApi {
@@ -57,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::signal::ctrl_c()
             .await
             .expect("Could not register ctrl+c handler");
-        shard_manager.lock().await.shutdown_all().await;
+        shard_manager.shutdown_all().await;
     });
 
     tracing::info!("Starting client");
