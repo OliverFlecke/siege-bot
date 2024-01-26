@@ -85,6 +85,8 @@ pub enum Role {
     AntiGadget,
     Trapper,
     Breach,
+    #[serde(other)]
+    Unknown,
 }
 
 #[cfg(test)]

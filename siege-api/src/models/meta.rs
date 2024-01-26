@@ -55,7 +55,7 @@ pub enum Platform {
     #[serde(rename = "iOS")]
     IOS,
     #[serde(other)]
-    Unkwon,
+    Unknown,
 }
 
 #[cfg(test)]
