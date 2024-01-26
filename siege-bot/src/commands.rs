@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use serenity::{builder::CreateApplicationCommand, model::prelude::command::CommandOptionType};
+use serenity::{
+    builder::{CreateCommand, CreateCommandOption},
+    model::prelude::CommandOptionType,
+};
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -24,7 +27,7 @@ pub mod statistics;
 
 #[async_trait]
 pub trait CommandHandler {
-    fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand;
+    fn register(command: &mut CreateCommand) -> &mut CreateCommand;
 
     async fn run<Ctx, Cmd>(ctx: &Ctx, command: &Cmd) -> CmdResult
     where
@@ -60,31 +63,29 @@ trait AddUserOptionToCommand {
     fn add_game_mode_option(&mut self) -> &mut Self;
 }
 
-impl AddUserOptionToCommand for CreateApplicationCommand {
+impl AddUserOptionToCommand for CreateCommand {
     fn add_user_option(&mut self) -> &mut Self {
-        self.create_option(|option| {
-            option
-                .name(USER)
-                .description("The user to get statistics for. Defaults to the sending user")
-                .kind(CommandOptionType::User)
-                .required(false)
-        })
+        self.add_option(CreateCommandOption::new(
+            CommandOptionType::User,
+            USER,
+            "The user to get statistics for. Defaults to the sending user",
+        ));
+        self
     }
 
     fn add_game_mode_option(&mut self) -> &mut Self {
-        self.create_option(|option| {
-            option
-                .name(GAME_MODE)
-                .description("Game mode to retreive statistics for")
-                .kind(CommandOptionType::String)
-                .required(false);
+        let mut option = CreateCommandOption::new(
+            CommandOptionType::String,
+            GAME_MODE,
+            "Game mode to retreive statistics for",
+        );
 
-            siege_api::models::AllOrRanked::iter().for_each(|mode| {
-                option.add_string_choice(mode, mode);
-            });
+        siege_api::models::AllOrRanked::iter().for_each(|mode| {
+            option.add_string_choice(mode.to_string(), mode.to_string());
+        });
+        self.add_option(option);
 
-            option
-        })
+        self
     }
 }
 

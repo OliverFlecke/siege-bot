@@ -1,22 +1,16 @@
-use std::{str::FromStr, sync::Arc};
-
+use super::{CmdResult, CommandError};
+use crate::constants::{NAME, USER};
 use async_trait::async_trait;
 use serenity::{
-    builder::{CreateAutocompleteResponse, CreateEmbed},
-    http::Http,
-    model::{
-        prelude::interaction::{
-            application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-            autocomplete::AutocompleteInteraction,
-            InteractionResponseType,
-        },
-        user::User,
+    all::UserId,
+    builder::{
+        CreateAutocompleteResponse, CreateEmbed, CreateInteractionResponse,
+        CreateInteractionResponseMessage,
     },
+    http::Http,
+    model::prelude::{CommandDataOptionValue, CommandInteraction},
 };
-
-use crate::constants::NAME;
-
-use super::{CmdResult, CommandError};
+use std::{str::FromStr, sync::Arc};
 
 /// Wrapper for a `ApplicationCommandInteraction`.
 #[cfg_attr(test, mockall::automock)]
@@ -33,7 +27,7 @@ pub trait DiscordAppCmd: Sync + Send {
 
     /// Extract the user argument from the command, or if not provide,
     /// return the user who invoked the command.
-    fn get_user_from_command_or_default(&self) -> User;
+    fn get_user_from_command_or_default(&self) -> UserId;
 
     async fn send_text(&self, http: Option<Arc<Http>>, text: &str) -> CmdResult;
 
@@ -43,14 +37,13 @@ pub trait DiscordAppCmd: Sync + Send {
 /// Implementation for wrapper trait. Is mostly transparent + a utility methods
 /// to extract data.
 #[async_trait]
-impl DiscordAppCmd for ApplicationCommandInteraction {
+impl DiscordAppCmd for CommandInteraction {
     fn get_option(&self, name: &str) -> Option<CommandDataOptionValue> {
         self.data
             .options
             .iter()
             .find(|x| x.name == name)
-            .and_then(|x| x.resolved.as_ref())
-            .cloned()
+            .map(|x| x.value)
     }
 
     fn extract_enum_option<T>(&self, option_name: &str) -> Option<T>
@@ -66,36 +59,34 @@ impl DiscordAppCmd for ApplicationCommandInteraction {
         })
     }
 
-    fn get_user_from_command_or_default(&self) -> User {
-        self.get_option("user")
+    fn get_user_from_command_or_default(&self) -> UserId {
+        self.get_option(USER)
             .and_then(|x| match x {
-                CommandDataOptionValue::User(user, _) => Some(user),
+                CommandDataOptionValue::User(user_id) => Some(user_id),
                 _ => None,
             })
-            .unwrap_or(self.user.clone())
+            .unwrap_or(self.user.id.clone())
     }
 
+    /// Send a basic text message to the current channel.
     async fn send_text(&self, http: Option<Arc<Http>>, text: &str) -> CmdResult {
-        self.create_interaction_response(
-            http.expect("http should always be set when sending text"),
-            |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|message| message.content(text))
-            },
+        self.create_response(
+            http.expect("http should always be set when sending embedded"),
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::default().content(text),
+            ),
         )
         .await
         .map_err(CommandError::SerenityError)
     }
 
+    /// Send an embedded message to the given channel.
     async fn send_embedded(&self, http: Option<Arc<Http>>, embed: CreateEmbed) -> CmdResult {
-        self.create_interaction_response(
+        self.create_response(
             http.expect("http should always be set when sending embedded"),
-            |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|msg| msg.add_embed(embed))
-            },
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::default().add_embed(embed),
+            ),
         )
         .await
         .map_err(CommandError::SerenityError)

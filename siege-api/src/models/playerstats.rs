@@ -25,7 +25,16 @@ impl From<Side> for SideOrAll {
 }
 
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString, strum::EnumIter,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::IntoStaticStr,
 )]
 pub enum AllOrRanked {
     #[default]
@@ -81,7 +90,7 @@ impl StatisticResponse {
     {
         self.get_statistics_from_side(game_mode, side)
             .map(|x| x.iter().filter_map(filter).collect())
-            .unwrap_or_else(Vec::default)
+            .unwrap_or_default()
     }
 
     /// Extract all operators from this side.
@@ -449,7 +458,7 @@ mod test {
 
         match statistic {
             GeneralStatistics::Summary(_) => {}
-            _ => assert!(false),
+            _ => unreachable!("Should not get this kind of statistics"),
         }
     }
 

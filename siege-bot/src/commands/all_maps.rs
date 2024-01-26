@@ -1,3 +1,8 @@
+use super::{
+    context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
+    CommandHandler,
+};
+use crate::{constants::GAME_MODE, formatting::FormatEmbedded, SiegeApi};
 use async_trait::async_trait;
 use serenity::{
     builder::{CreateApplicationCommand, CreateEmbed},
@@ -8,13 +13,6 @@ use serenity::{
 };
 use siege_api::models::{AllOrRanked, MapStatistics, SideOrAll};
 use strum::IntoEnumIterator;
-
-use crate::{constants::GAME_MODE, formatting::FormatEmbedded, SiegeApi};
-
-use super::{
-    context::DiscordContext, discord_app_command::DiscordAppCmd, AddUserOptionToCommand, CmdResult,
-    CommandHandler,
-};
 
 #[derive(Debug, Clone, Copy, strum::EnumString, strum::Display, strum::EnumIter)]
 enum Sorting {
